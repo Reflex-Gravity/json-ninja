@@ -75,7 +75,7 @@ export default function Toolbar({
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-tight">
-              JSON Editor
+              JSON Ninja
             </span>
             <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight hidden sm:block">
               View, edit, format &amp; compare JSON
