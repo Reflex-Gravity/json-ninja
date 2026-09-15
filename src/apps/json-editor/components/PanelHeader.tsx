@@ -92,7 +92,7 @@ export default function PanelHeader({
   };
 
   return (
-    <div className="flex flex-col border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 select-none">
+    <div className="relative flex flex-col border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 select-none">
       <div className="flex items-center gap-1 px-2 py-1.5 min-h-[40px]">
         {/* Mode switcher */}
         <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">

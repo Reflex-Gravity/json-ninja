@@ -6,11 +6,26 @@ export type Theme = 'light' | 'dark';
 
 export type PanelId = 0 | 1 | 2 | 3;
 
-export interface PanelState {
-  id: PanelId;
+export type ToolId = 'json' | 'svg' | 'html' | 'base64';
+
+export interface TabState {
+  id: string;
+  title: string;
   mode: EditorMode;
   content: string;
-  title: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PanelState {
+  id: PanelId;
+  activeTabId: string;
+  tabs: TabState[];
+}
+
+export interface JsonEditorState {
+  layout: LayoutType;
+  panels: PanelState[];
 }
 
 export interface SavedDocument {
@@ -23,9 +38,21 @@ export interface SavedDocument {
 }
 
 export interface AppPreferences {
-  layout: LayoutType;
   theme: Theme;
-  panelStates: PanelState[];
+  activeTool: ToolId;
+}
+
+export interface SvgToolState {
+  content: string;
+}
+
+export interface HtmlToolState {
+  content: string;
+}
+
+export interface Base64ToolState {
+  mode: 'encode' | 'decode';
+  input: string;
 }
 
 export const MAX_PANELS: Record<LayoutType, number> = {

@@ -21,3 +21,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# AI agent tooling state (local, not shared)
+.claude/
+.serena/

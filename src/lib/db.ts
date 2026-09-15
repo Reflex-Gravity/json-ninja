@@ -1,9 +1,11 @@
-import type { AppPreferences, SavedDocument } from '@/types';
+import type { AppPreferences, JsonEditorState, SavedDocument } from '@/types';
 
 const DB_NAME = 'json-editor-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const DOC_STORE = 'documents';
 const PREF_STORE = 'preferences';
+const JSON_EDITOR_STORE = 'json-editor-state';
+const TOOL_STATE_STORE = 'tool-state';
 
 let dbInstance: IDBDatabase | null = null;
 
@@ -23,6 +25,12 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(PREF_STORE)) {
         db.createObjectStore(PREF_STORE);
+      }
+      if (!db.objectStoreNames.contains(JSON_EDITOR_STORE)) {
+        db.createObjectStore(JSON_EDITOR_STORE);
+      }
+      if (!db.objectStoreNames.contains(TOOL_STATE_STORE)) {
+        db.createObjectStore(TOOL_STATE_STORE);
       }
     };
   });
@@ -70,4 +78,39 @@ export async function getPreferences(): Promise<AppPreferences | null> {
 
 export async function savePreferences(prefs: AppPreferences): Promise<void> {
   await tx(PREF_STORE, 'readwrite', (s) => s.put(prefs, 'app'));
+}
+
+// Pre-v2 installs stored { layout, theme, panelStates } in the same 'app' record.
+// Read it loosely (not as AppPreferences) so JsonEditorApp can migrate it once.
+export async function getLegacyPreferencesRaw(): Promise<
+  Record<string, unknown> | undefined
+> {
+  return tx<Record<string, unknown> | undefined>(PREF_STORE, 'readonly', (s) =>
+    s.get('app')
+  );
+}
+
+export async function getJsonEditorState(): Promise<JsonEditorState | null> {
+  return tx<JsonEditorState | undefined>(JSON_EDITOR_STORE, 'readonly', (s) =>
+    s.get('state')
+  ).then((r) => r ?? null);
+}
+
+export async function saveJsonEditorState(
+  state: JsonEditorState
+): Promise<void> {
+  await tx(JSON_EDITOR_STORE, 'readwrite', (s) => s.put(state, 'state'));
+}
+
+export async function getToolState<T>(tool: string): Promise<T | null> {
+  return tx<T | undefined>(TOOL_STATE_STORE, 'readonly', (s) =>
+    s.get(tool)
+  ).then((r) => r ?? null);
+}
+
+export async function saveToolState<T>(
+  tool: string,
+  state: T
+): Promise<void> {
+  await tx(TOOL_STATE_STORE, 'readwrite', (s) => s.put(state, tool));
 }

@@ -1,10 +1,13 @@
 import { useRef } from 'react';
-import { PanelId, EditorMode } from '@/types';
+import { PanelId, EditorMode, TabState } from '@/types';
 import JSONEditorWrapper from './JSONEditorWrapper';
 import PanelHeader from './PanelHeader';
+import TabStrip from './TabStrip';
 
 interface Props {
   panelId: PanelId;
+  tabs: TabState[];
+  activeTabId: string;
   title: string;
   mode: EditorMode;
   content: string;
@@ -12,6 +15,9 @@ interface Props {
   onModeChange: (mode: EditorMode) => void;
   onContentChange: (content: string) => void;
   onTitleChange: (title: string) => void;
+  onTabSelect: (tabId: string) => void;
+  onTabAdd: () => void;
+  onTabClose: (tabId: string) => void;
   onSave: () => void;
   onImportFile: () => void;
   onExportFile: () => void;
@@ -49,6 +55,13 @@ export default function Panel(props: Props) {
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+      <TabStrip
+        tabs={props.tabs}
+        activeTabId={props.activeTabId}
+        onSelect={props.onTabSelect}
+        onAdd={props.onTabAdd}
+        onClose={props.onTabClose}
+      />
       <PanelHeader
         title={props.title}
         mode={props.mode}
