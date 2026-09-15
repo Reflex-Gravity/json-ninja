@@ -1,22 +1,18 @@
 import { useState, useRef, useCallback } from 'react';
-import type { LayoutType } from '@/types';
+import type { LayoutType, EditorMode, PanelId, PanelState } from '@/types';
 import Panel from './Panel';
-import type { EditorMode, PanelId } from '@/types';
-
-interface PanelConfig {
-  id: PanelId;
-  title: string;
-  mode: EditorMode;
-  content: string;
-}
+import { getActiveTab } from '../tabs';
 
 interface Props {
   layout: LayoutType;
-  panels: PanelConfig[];
+  panels: PanelState[];
   theme: 'light' | 'dark';
   onModeChange: (id: PanelId, mode: EditorMode) => void;
   onContentChange: (id: PanelId, content: string) => void;
   onTitleChange: (id: PanelId, title: string) => void;
+  onTabSelect: (id: PanelId, tabId: string) => void;
+  onTabAdd: (id: PanelId) => void;
+  onTabClose: (id: PanelId, tabId: string) => void;
   onSave: (id: PanelId) => void;
   onCompare?: (id: PanelId) => void;
 }
@@ -28,6 +24,9 @@ export default function PanelGrid({
   onModeChange,
   onContentChange,
   onTitleChange,
+  onTabSelect,
+  onTabAdd,
+  onTabClose,
   onSave,
   onCompare,
 }: Props) {
@@ -82,23 +81,31 @@ export default function PanelGrid({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const renderPanel = (panel: PanelConfig, compareId?: PanelId) => (
-    <Panel
-      key={panel.id}
-      panelId={panel.id}
-      title={panel.title}
-      mode={panel.mode}
-      content={panel.content}
-      theme={theme}
-      onModeChange={(m) => onModeChange(panel.id, m)}
-      onContentChange={(c) => onContentChange(panel.id, c)}
-      onTitleChange={(t) => onTitleChange(panel.id, t)}
-      onSave={() => onSave(panel.id)}
-      onImportFile={() => {}}
-      onExportFile={() => {}}
-      onCompare={compareId !== undefined ? () => onCompare?.(panel.id) : undefined}
-    />
-  );
+  const renderPanel = (panel: PanelState, compareId?: PanelId) => {
+    const activeTab = getActiveTab(panel);
+    return (
+      <Panel
+        key={panel.id}
+        panelId={panel.id}
+        tabs={panel.tabs}
+        activeTabId={panel.activeTabId}
+        title={activeTab.title}
+        mode={activeTab.mode}
+        content={activeTab.content}
+        theme={theme}
+        onModeChange={(m) => onModeChange(panel.id, m)}
+        onContentChange={(c) => onContentChange(panel.id, c)}
+        onTitleChange={(t) => onTitleChange(panel.id, t)}
+        onTabSelect={(tabId) => onTabSelect(panel.id, tabId)}
+        onTabAdd={() => onTabAdd(panel.id)}
+        onTabClose={(tabId) => onTabClose(panel.id, tabId)}
+        onSave={() => onSave(panel.id)}
+        onImportFile={() => {}}
+        onExportFile={() => {}}
+        onCompare={compareId !== undefined ? () => onCompare?.(panel.id) : undefined}
+      />
+    );
+  };
 
   if (layout === 'single') {
     return (

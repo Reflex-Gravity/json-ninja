@@ -1,27 +1,29 @@
+import { useState } from 'react';
 import {
+  Braces,
+  Sun,
+  Moon,
   Square,
   Columns2,
   Rows2,
   Grid2x2,
-  Sun,
-  Moon,
   FolderOpen,
-  Braces,
   Link as LinkIcon,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
-import type { LayoutType, Theme } from '@/types';
+import type { Theme, ToolId, LayoutType } from '@/types';
+import { TOOLS } from '@/lib/tools';
 
 interface Props {
-  layout: LayoutType;
   theme: Theme;
-  onLayoutChange: (layout: LayoutType) => void;
   onThemeChange: (theme: Theme) => void;
-  onOpenDocuments: () => void;
-  onFormatAll: () => void;
-  onImportUrl: (url: string, panelIndex: number) => void;
-  panelCount: number;
+  activeTool: ToolId;
+  jsonLayout?: LayoutType;
+  jsonPanelCount?: number;
+  onJsonLayoutChange?: (layout: LayoutType) => void;
+  onFormatAll?: () => void;
+  onOpenDocuments?: () => void;
+  onImportUrl?: (text: string, panelIndex: number) => void;
 }
 
 const layoutOptions: { type: LayoutType; label: string; icon: typeof Square }[] = [
@@ -31,16 +33,20 @@ const layoutOptions: { type: LayoutType; label: string; icon: typeof Square }[] 
   { type: 'grid', label: '2x2 Grid', icon: Grid2x2 },
 ];
 
-export default function Toolbar({
-  layout,
+export default function Topbar({
   theme,
-  onLayoutChange,
   onThemeChange,
-  onOpenDocuments,
+  activeTool,
+  jsonLayout,
+  jsonPanelCount = 1,
+  onJsonLayoutChange,
   onFormatAll,
+  onOpenDocuments,
   onImportUrl,
-  panelCount,
 }: Props) {
+  const activeLabel = TOOLS.find((t) => t.id === activeTool)?.label ?? '';
+  const showPanelConfig = activeTool === 'json' && jsonLayout && onJsonLayoutChange;
+
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [panelIndex, setPanelIndex] = useState(0);
@@ -48,7 +54,7 @@ export default function Toolbar({
   const [error, setError] = useState('');
 
   const handleImportUrl = async () => {
-    if (!url.trim()) return;
+    if (!url.trim() || !onImportUrl) return;
     setLoading(true);
     setError('');
     try {
@@ -67,10 +73,9 @@ export default function Toolbar({
 
   return (
     <>
-      <header className="flex items-center justify-between px-3 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 select-none">
-        {/* Logo / Title */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 text-white">
+      <header className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 select-none overflow-x-auto">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 text-white flex-shrink-0">
             <Braces className="w-4.5 h-4.5" />
           </div>
           <div className="flex flex-col">
@@ -78,65 +83,70 @@ export default function Toolbar({
               JSON Ninja
             </span>
             <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight hidden sm:block">
-              View, edit, format &amp; compare JSON
+              {activeLabel}
             </span>
           </div>
         </div>
 
-        {/* Layout selector */}
-        <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
-          {layoutOptions.map(({ type, label, icon: Icon }) => (
-            <button
-              key={type}
-              onClick={() => onLayoutChange(type)}
-              title={label}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all ${
-                layout === type
-                  ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="hidden md:inline">{label}</span>
-            </button>
-          ))}
-        </div>
+        {showPanelConfig && (
+          <>
+            <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
 
-        {/* Right actions */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onFormatAll}
-            title="Format all panels"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <Braces className="w-4 h-4" />
-            <span className="hidden lg:inline">Format All</span>
-          </button>
-          <button
-            onClick={() => setUrlModalOpen(true)}
-            title="Import from URL"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <LinkIcon className="w-4 h-4" />
-            <span className="hidden lg:inline">Import URL</span>
-          </button>
-          <button
-            onClick={onOpenDocuments}
-            title="Open saved documents"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <FolderOpen className="w-4 h-4" />
-            <span className="hidden lg:inline">Documents</span>
-          </button>
-          <div className="w-px h-6 bg-gray-200 dark:bg-gray-600 mx-1" />
-          <button
-            onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
-        </div>
+            {/* Layout selector */}
+            <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 flex-shrink-0">
+              {layoutOptions.map(({ type, label, icon: Icon }) => (
+                <button
+                  key={type}
+                  onClick={() => onJsonLayoutChange?.(type)}
+                  title={label}
+                  className={`flex items-center justify-center p-1.5 rounded-md transition-all ${
+                    jsonLayout === type
+                      ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="flex-1" />
+
+        {showPanelConfig && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <button
+              onClick={onFormatAll}
+              title="Format all panels"
+              className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <Braces className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setUrlModalOpen(true)}
+              title="Import from URL"
+              className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <LinkIcon className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onOpenDocuments}
+              title="Open saved documents"
+              className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <FolderOpen className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+        >
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
       </header>
 
       {/* URL import modal */}
@@ -177,7 +187,7 @@ export default function Toolbar({
                   onChange={(e) => setPanelIndex(Number(e.target.value))}
                   className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 outline-none focus:border-blue-400"
                 >
-                  {Array.from({ length: panelCount }, (_, i) => (
+                  {Array.from({ length: jsonPanelCount }, (_, i) => (
                     <option key={i} value={i}>
                       Panel {i + 1}
                     </option>
