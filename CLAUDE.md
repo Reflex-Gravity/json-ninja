@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-JSON Ninja — a client-side JSON editor/formatter/validator (Vite + React + TypeScript + Tailwind). All
-data processing happens in the browser; documents and preferences persist to IndexedDB
-(`src/lib/db.ts`), not a server. `@supabase/supabase-js` is a declared dependency but is not currently
-wired up anywhere in `src/`.
+GravityTools — a client-side multi-tool workspace (JSON editor/formatter/validator, SVG preview, HTML
+preview, Base64 encode/decode) built with Vite + React + TypeScript + Tailwind. All data processing
+happens in the browser; documents and preferences persist to IndexedDB (`src/lib/db.ts`), not a server.
+`@supabase/supabase-js` is a declared dependency but is not currently wired up anywhere in `src/`.
 
 ## Commands
 

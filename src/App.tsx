@@ -10,7 +10,7 @@ import HtmlPreviewApp from '@/apps/html-preview/HtmlPreviewApp';
 import Base64App from '@/apps/base64/Base64App';
 
 export default function App() {
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>('dark');
   const [activeTool, setActiveTool] = useState<ToolId>('json');
   const [loaded, setLoaded] = useState(false);
   const [jsonLayout, setJsonLayout] = useState<LayoutType>('horizontal');
@@ -54,7 +54,7 @@ export default function App() {
 
   if (!loaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="dark min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-sm text-gray-400">Loading...</div>
       </div>
     );
