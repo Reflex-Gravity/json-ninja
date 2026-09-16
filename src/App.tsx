@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react';
 import type { AppPreferences, Theme, ToolId, LayoutType } from '@/types';
 import { MAX_PANELS } from '@/types';
 import { getPreferences, savePreferences } from '@/lib/db';
 import { getToolFromPath, getPathForTool } from '@/lib/tools';
+import { applyToolSeo } from '@/lib/seo';
 import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import JsonEditorApp, { type JsonEditorHandle } from '@/apps/json-editor/JsonEditorApp';
-import SvgPreviewApp from '@/apps/svg-preview/SvgPreviewApp';
-import HtmlPreviewApp from '@/apps/html-preview/HtmlPreviewApp';
-import Base64App from '@/apps/base64/Base64App';
+
+const SvgPreviewApp = lazy(() => import('@/apps/svg-preview/SvgPreviewApp'));
+const HtmlPreviewApp = lazy(() => import('@/apps/html-preview/HtmlPreviewApp'));
+const Base64App = lazy(() => import('@/apps/base64/Base64App'));
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>('dark');
@@ -39,6 +41,11 @@ export default function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Keep <title>/meta description/canonical in sync with the active tool.
+  useEffect(() => {
+    applyToolSeo(activeTool);
+  }, [activeTool]);
 
   useEffect(() => {
     getPreferences().then((prefs) => {
@@ -110,9 +117,11 @@ export default function App() {
               onLayoutChange={setJsonLayout}
             />
           )}
-          {activeTool === 'svg' && <SvgPreviewApp />}
-          {activeTool === 'html' && <HtmlPreviewApp />}
-          {activeTool === 'base64' && <Base64App />}
+          <Suspense fallback={null}>
+            {activeTool === 'svg' && <SvgPreviewApp />}
+            {activeTool === 'html' && <HtmlPreviewApp />}
+            {activeTool === 'base64' && <Base64App />}
+          </Suspense>
         </div>
       </div>
     </div>
