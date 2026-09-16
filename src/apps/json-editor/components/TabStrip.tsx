@@ -2,11 +2,21 @@ import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import type { PanelId, TabState } from '@/types';
 
-const TAB_DRAG_MIME = 'application/x-panel-tab';
+export const TAB_DRAG_MIME = 'application/x-panel-tab';
 
-interface TabDragPayload {
+export interface TabDragPayload {
   panelId: PanelId;
   tabId: string;
+}
+
+export function readTabDragPayload(e: React.DragEvent): TabDragPayload | null {
+  const raw = e.dataTransfer.getData(TAB_DRAG_MIME);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as TabDragPayload;
+  } catch {
+    return null;
+  }
 }
 
 interface Props {
@@ -30,16 +40,6 @@ export default function TabStrip({
 }: Props) {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const readPayload = (e: React.DragEvent): TabDragPayload | null => {
-    const raw = e.dataTransfer.getData(TAB_DRAG_MIME);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as TabDragPayload;
-    } catch {
-      return null;
-    }
-  };
-
   const handleDragStart = (e: React.DragEvent, tabId: string) => {
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData(
@@ -57,7 +57,7 @@ export default function TabStrip({
   const handleDrop = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     setDragOverIndex(null);
-    const payload = readPayload(e);
+    const payload = readTabDragPayload(e);
     if (!payload) return;
     onTabDrop(payload.panelId, payload.tabId, index);
   };
@@ -84,6 +84,7 @@ export default function TabStrip({
           }}
           onDragLeave={() => setDragOverIndex(null)}
           onClick={() => onSelect(tab.id)}
+          title="Drag to reorder, or drop onto another panel to move it there"
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-t-md text-xs font-medium cursor-pointer whitespace-nowrap transition-colors flex-shrink-0 ${
             dragOverIndex === index ? 'border-l-2 border-blue-500' : ''
           } ${

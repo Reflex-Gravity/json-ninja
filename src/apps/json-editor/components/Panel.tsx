@@ -1,8 +1,8 @@
-import { useRef } from 'react';
+import { useState, useRef } from 'react';
 import { PanelId, EditorMode, TabState } from '@/types';
 import JSONEditorWrapper from './JSONEditorWrapper';
 import PanelHeader from './PanelHeader';
-import TabStrip from './TabStrip';
+import TabStrip, { readTabDragPayload } from './TabStrip';
 
 interface Props {
   panelId: PanelId;
@@ -27,6 +27,21 @@ interface Props {
 
 export default function Panel(props: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isTabDragOver, setIsTabDragOver] = useState(false);
+
+  const handleContentDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setIsTabDragOver(true);
+  };
+
+  const handleContentDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsTabDragOver(false);
+    const payload = readTabDragPayload(e);
+    if (!payload) return;
+    props.onTabDrop(payload.panelId, payload.tabId, props.tabs.length);
+  };
 
   const handleImportFile = () => {
     fileInputRef.current?.click();
@@ -77,7 +92,14 @@ export default function Panel(props: Props) {
         onExportFile={handleExportFile}
         onCompare={props.onCompare}
       />
-      <div className="flex-1 overflow-hidden relative">
+      <div
+        className={`flex-1 overflow-hidden relative ${
+          isTabDragOver ? 'ring-2 ring-inset ring-blue-500' : ''
+        }`}
+        onDragOver={handleContentDragOver}
+        onDrop={handleContentDrop}
+        onDragLeave={() => setIsTabDragOver(false)}
+      >
         <JSONEditorWrapper
           content={props.content}
           mode={props.mode}

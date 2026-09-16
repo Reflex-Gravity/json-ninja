@@ -1,3 +1,5 @@
+import { jsonrepair } from 'jsonrepair';
+
 export function formatJson(content: string): string {
   const parsed = JSON.parse(content);
   return JSON.stringify(parsed, null, 2);
@@ -45,27 +47,11 @@ export function repairJson(content: string): string {
     JSON.parse(content);
     return content;
   } catch {
-    // attempt common fixes
-    let fixed = content
-      .replace(/'/g, '"')
-      .replace(/,\s*([}\]])/g, '$1')
-      .replace(/([,{]\s*)(\w+)\s*:/g, '$1"$2":');
-
     try {
-      const parsed = JSON.parse(fixed);
+      const parsed = JSON.parse(jsonrepair(content));
       return JSON.stringify(parsed, null, 2);
     } catch {
-      // try wrapping in braces if it starts without them
-      const trimmed = content.trim();
-      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
-        try {
-          const parsed = JSON.parse(`{${trimmed}}`);
-          return JSON.stringify(parsed, null, 2);
-        } catch {
-          // fall through
-        }
-      }
-      return fixed;
+      return content;
     }
   }
 }
