@@ -1,123 +1,99 @@
-import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeftRight, X } from 'lucide-react';
 import { formatJson, tryParseJson } from '@/lib/json-utils';
+import { buildSideBySideDiff } from '@/lib/diff-utils';
+import type { PanelId, PanelState } from '@/types';
+import { findTab } from '../tabs';
+
+interface DocRef {
+  panelId: PanelId;
+  tabId: string;
+}
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  leftTitle: string;
-  rightTitle: string;
-  leftContent: string;
-  rightContent: string;
+  panels: PanelState[];
+  initialLeft: DocRef | null;
+  initialRight: DocRef | null;
 }
 
-interface DiffEntry {
-  path: string;
-  leftValue: string;
-  rightValue: string;
-  type: 'added' | 'removed' | 'changed';
+interface DocOption extends DocRef {
+  key: string;
+  label: string;
 }
 
-function flattenJson(obj: unknown, prefix = ''): Map<string, string> {
-  const map = new Map<string, string>();
-  if (obj === null) {
-    map.set(prefix || '$', 'null');
-    return map;
-  }
-  if (typeof obj !== 'object') {
-    map.set(prefix || '$', JSON.stringify(obj));
-    return map;
-  }
-  if (Array.isArray(obj)) {
-    obj.forEach((item, i) => {
-      const path = `${prefix}[${i}]`;
-      flattenJson(item, path).forEach((v, k) => map.set(k, v));
-    });
-    return map;
-  }
-  for (const key of Object.keys(obj as Record<string, unknown>)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-    flattenJson((obj as Record<string, unknown>)[key], path).forEach((v, k) => map.set(k, v));
-  }
-  return map;
+function toKey(ref: DocRef | null): string {
+  return ref ? `${ref.panelId}:${ref.tabId}` : '';
 }
 
-function computeDiffs(left: string, right: string): DiffEntry[] {
-  let leftJson: unknown, rightJson: unknown;
+function resolveContent(panels: PanelState[], ref: DocRef | null): string {
+  if (!ref) return '';
+  const tab = findTab(panels, ref.panelId, ref.tabId);
+  return tab?.content ?? '';
+}
+
+function formattedFor(panels: PanelState[], ref: DocRef | null): string {
+  const content = resolveContent(panels, ref);
+  const parsed = tryParseJson(content);
+  if (!parsed.ok) return content;
   try {
-    leftJson = JSON.parse(left);
+    return formatJson(content);
   } catch {
-    return [];
+    return content;
   }
-  try {
-    rightJson = JSON.parse(right);
-  } catch {
-    return [];
-  }
-  const leftMap = flattenJson(leftJson);
-  const rightMap = flattenJson(rightJson);
-  const diffs: DiffEntry[] = [];
-  for (const [path, value] of leftMap) {
-    if (!rightMap.has(path)) {
-      diffs.push({ path, leftValue: value, rightValue: '', type: 'removed' });
-    } else if (rightMap.get(path) !== value) {
-      diffs.push({ path, leftValue: value, rightValue: rightMap.get(path)!, type: 'changed' });
-    }
-  }
-  for (const [path, value] of rightMap) {
-    if (!leftMap.has(path)) {
-      diffs.push({ path, leftValue: '', rightValue: value, type: 'added' });
-    }
-  }
-  return diffs.sort((a, b) => a.path.localeCompare(b.path));
 }
 
-export default function CompareDialog({
-  open,
-  onClose,
-  leftTitle,
-  rightTitle,
-  leftContent,
-  rightContent,
-}: Props) {
-  const [leftFormatted, setLeftFormatted] = useState('');
-  const [rightFormatted, setRightFormatted] = useState('');
-  const [diffs, setDiffs] = useState<DiffEntry[]>([]);
+export default function CompareDialog({ open, onClose, panels, initialLeft, initialRight }: Props) {
+  const [left, setLeft] = useState<DocRef | null>(initialLeft);
+  const [right, setRight] = useState<DocRef | null>(initialRight);
 
   useEffect(() => {
-    if (!open) return;
-    const lv = tryParseJson(leftContent);
-    const rv = tryParseJson(rightContent);
-    if (lv.ok) {
-      try {
-        setLeftFormatted(formatJson(leftContent));
-      } catch {
-        setLeftFormatted(leftContent);
-      }
-    } else {
-      setLeftFormatted(leftContent);
+    if (open) {
+      setLeft(initialLeft);
+      setRight(initialRight);
     }
-    if (rv.ok) {
-      try {
-        setRightFormatted(formatJson(rightContent));
-      } catch {
-        setRightFormatted(rightContent);
-      }
-    } else {
-      setRightFormatted(rightContent);
-    }
-    if (lv.ok && rv.ok) {
-      setDiffs(computeDiffs(leftContent, rightContent));
-    } else {
-      setDiffs([]);
-    }
-  }, [open, leftContent, rightContent]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const options: DocOption[] = useMemo(
+    () =>
+      panels.flatMap((p) =>
+        p.tabs.map((t) => ({
+          panelId: p.id,
+          tabId: t.id,
+          key: `${p.id}:${t.id}`,
+          label: `Document ${p.id + 1} · ${t.title}`,
+        }))
+      ),
+    [panels]
+  );
+
+  const diff = useMemo(() => {
+    if (!open) return null;
+    return buildSideBySideDiff(formattedFor(panels, left), formattedFor(panels, right));
+  }, [open, panels, left, right]);
 
   if (!open) return null;
 
+  const handleSelect = (side: 'left' | 'right', key: string) => {
+    const option = options.find((o) => o.key === key);
+    if (!option) return;
+    const ref: DocRef = { panelId: option.panelId, tabId: option.tabId };
+    if (side === 'left') setLeft(ref);
+    else setRight(ref);
+  };
+
+  const handleSwap = () => {
+    setLeft(right);
+    setRight(left);
+  };
+
+  const identical = diff !== null && diff.added === 0 && diff.removed === 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-5xl mx-4 max-h-[85vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[95vw] h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Compare Documents</h2>
           <button
@@ -128,85 +104,89 @@ export default function CompareDialog({
           </button>
         </div>
 
-        {diffs.length > 0 && (
+        <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-100 dark:border-gray-700">
+          <select
+            value={toKey(left)}
+            onChange={(e) => handleSelect('left', e.target.value)}
+            className="flex-1 min-w-0 text-xs border border-gray-200 dark:border-gray-600 rounded-md px-2 py-1.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200"
+          >
+            {options.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleSwap}
+            title="Swap"
+            className="flex-shrink-0 p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+          </button>
+          <select
+            value={toKey(right)}
+            onChange={(e) => handleSelect('right', e.target.value)}
+            className="flex-1 min-w-0 text-xs border border-gray-200 dark:border-gray-600 rounded-md px-2 py-1.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200"
+          >
+            {options.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {diff && (
           <div className="px-5 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-            <p className="text-xs text-gray-600 dark:text-gray-400">
-              <span className="font-semibold text-gray-700 dark:text-gray-300">{diffs.length}</span> differences found
-              {' '}
-              <span className="text-green-600 dark:text-green-400">{diffs.filter((d) => d.type === 'added').length} added</span>
-              {' · '}
-              <span className="text-red-500 dark:text-red-400">{diffs.filter((d) => d.type === 'removed').length} removed</span>
-              {' · '}
-              <span className="text-amber-500 dark:text-amber-400">{diffs.filter((d) => d.type === 'changed').length} changed</span>
-            </p>
+            {identical ? (
+              <p className="text-xs text-green-600 dark:text-green-400">Documents are identical</p>
+            ) : (
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                <span className="text-green-600 dark:text-green-400">+{diff.added} added</span>
+                {' · '}
+                <span className="text-red-500 dark:text-red-400">-{diff.removed} removed</span>
+              </p>
+            )}
           </div>
         )}
 
-        <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-          <div className="flex flex-1 overflow-hidden min-h-0">
-            <div className="flex-1 flex flex-col min-h-0 border-r border-gray-200 dark:border-gray-700">
-              <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-750 border-b border-gray-100 dark:border-gray-700">
-                {leftTitle}
-              </div>
-              <pre className="flex-1 overflow-auto p-3 text-xs font-mono text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800">
-                {leftFormatted || '(empty)'}
-              </pre>
-            </div>
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-750 border-b border-gray-100 dark:border-gray-700">
-                {rightTitle}
-              </div>
-              <pre className="flex-1 overflow-auto p-3 text-xs font-mono text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800">
-                {rightFormatted || '(empty)'}
-              </pre>
-            </div>
-          </div>
-
-          {diffs.length > 0 && (
-            <div className="h-40 overflow-y-auto border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                  <tr>
-                    <th className="text-left px-3 py-1.5 font-medium">Path</th>
-                    <th className="text-left px-3 py-1.5 font-medium">Left</th>
-                    <th className="text-left px-3 py-1.5 font-medium">Right</th>
-                    <th className="text-left px-3 py-1.5 font-medium">Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {diffs.map((d, i) => (
-                    <tr key={i} className="border-t border-gray-100 dark:border-gray-700">
-                      <td className="px-3 py-1.5 font-mono text-gray-600 dark:text-gray-300">{d.path}</td>
-                      <td className="px-3 py-1.5 font-mono text-gray-500 dark:text-gray-400">
-                        {d.leftValue || <span className="text-gray-300">—</span>}
-                      </td>
-                      <td className="px-3 py-1.5 font-mono text-gray-500 dark:text-gray-400">
-                        {d.rightValue || <span className="text-gray-300">—</span>}
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            d.type === 'added'
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                              : d.type === 'removed'
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                          }`}
-                        >
-                          {d.type}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {diffs.length === 0 && tryParseJson(leftContent).ok && tryParseJson(rightContent).ok && (
-            <div className="px-5 py-3 text-xs text-green-600 dark:text-green-400 text-center border-t border-gray-200 dark:border-gray-700">
-              Documents are identical
-            </div>
-          )}
+        <div className="flex-1 overflow-auto min-h-0 font-mono text-xs">
+          <table className="w-full border-collapse">
+            <tbody>
+              {diff?.rows.map((row, i) => (
+                <tr key={i}>
+                  <td
+                    className={`w-10 text-right pr-2 select-none align-top text-gray-400 dark:text-gray-500 ${
+                      row.type === 'removed' ? 'bg-red-50 dark:bg-red-950/40' : ''
+                    }`}
+                  >
+                    {row.leftNum ?? ''}
+                  </td>
+                  <td
+                    className={`w-1/2 whitespace-pre px-2 align-top text-gray-700 dark:text-gray-200 ${
+                      row.type === 'removed' ? 'bg-red-50 dark:bg-red-950/40' : ''
+                    }`}
+                  >
+                    {row.leftLine ?? ''}
+                  </td>
+                  <td
+                    className={`w-10 text-right pr-2 select-none align-top text-gray-400 dark:text-gray-500 border-l border-gray-100 dark:border-gray-700 ${
+                      row.type === 'added' ? 'bg-green-50 dark:bg-green-950/40' : ''
+                    }`}
+                  >
+                    {row.rightNum ?? ''}
+                  </td>
+                  <td
+                    className={`w-1/2 whitespace-pre px-2 align-top text-gray-700 dark:text-gray-200 ${
+                      row.type === 'added' ? 'bg-green-50 dark:bg-green-950/40' : ''
+                    }`}
+                  >
+                    {row.rightLine ?? ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
