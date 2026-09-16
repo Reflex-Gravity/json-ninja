@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Orbit,
   Braces,
   Sun,
   Moon,
@@ -76,11 +77,11 @@ export default function Topbar({
       <header className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 select-none overflow-x-auto">
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-teal-500 text-white flex-shrink-0">
-            <Braces className="w-4.5 h-4.5" />
+            <Orbit className="w-4.5 h-4.5" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-tight">
-              JSON Ninja
+              GravityTools
             </span>
             <span className="text-[10px] text-gray-400 dark:text-gray-500 leading-tight hidden sm:block">
               {activeLabel}
