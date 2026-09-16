@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { AppPreferences, Theme, ToolId, LayoutType } from '@/types';
 import { MAX_PANELS } from '@/types';
 import { getPreferences, savePreferences } from '@/lib/db';
+import { getToolFromPath, getPathForTool } from '@/lib/tools';
 import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import JsonEditorApp, { type JsonEditorHandle } from '@/apps/json-editor/JsonEditorApp';
@@ -11,7 +12,9 @@ import Base64App from '@/apps/base64/Base64App';
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>('dark');
-  const [activeTool, setActiveTool] = useState<ToolId>('json');
+  const [activeTool, setActiveTool] = useState<ToolId>(() =>
+    getToolFromPath(window.location.pathname)
+  );
   const [loaded, setLoaded] = useState(false);
   const [jsonLayout, setJsonLayout] = useState<LayoutType>('horizontal');
   const jsonEditorRef = useRef<JsonEditorHandle>(null);
@@ -19,11 +22,28 @@ export default function App() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<AppPreferences | null>(null);
 
+  // Canonicalize the URL once on mount (e.g. an unknown path falls back to '/').
+  useEffect(() => {
+    const canonicalPath = getPathForTool(activeTool);
+    if (window.location.pathname !== canonicalPath) {
+      window.history.replaceState(null, '', canonicalPath);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep activeTool in sync with browser back/forward navigation.
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTool(getToolFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   useEffect(() => {
     getPreferences().then((prefs) => {
       if (prefs) {
         setTheme(prefs.theme);
-        setActiveTool(prefs.activeTool ?? 'json');
       }
       setLoaded(true);
     });
@@ -33,8 +53,8 @@ export default function App() {
     };
   }, []);
 
-  const persistShellPrefs = useCallback((newTheme: Theme, newTool: ToolId) => {
-    pendingRef.current = { theme: newTheme, activeTool: newTool };
+  const persistShellPrefs = useCallback((newTheme: Theme) => {
+    pendingRef.current = { theme: newTheme };
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       if (pendingRef.current) savePreferences(pendingRef.current);
@@ -44,12 +64,15 @@ export default function App() {
 
   const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme);
-    persistShellPrefs(newTheme, activeTool);
+    persistShellPrefs(newTheme);
   };
 
   const handleToolChange = (newTool: ToolId) => {
     setActiveTool(newTool);
-    persistShellPrefs(theme, newTool);
+    const path = getPathForTool(newTool);
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+    }
   };
 
   if (!loaded) {

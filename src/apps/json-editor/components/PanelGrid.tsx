@@ -13,6 +13,7 @@ interface Props {
   onTabSelect: (id: PanelId, tabId: string) => void;
   onTabAdd: (id: PanelId) => void;
   onTabClose: (id: PanelId, tabId: string) => void;
+  onTabMove: (fromPanelId: PanelId, tabId: string, toPanelId: PanelId, toIndex: number) => void;
   onSave: (id: PanelId) => void;
   onCompare?: (id: PanelId) => void;
 }
@@ -27,6 +28,7 @@ export default function PanelGrid({
   onTabSelect,
   onTabAdd,
   onTabClose,
+  onTabMove,
   onSave,
   onCompare,
 }: Props) {
@@ -99,6 +101,9 @@ export default function PanelGrid({
         onTabSelect={(tabId) => onTabSelect(panel.id, tabId)}
         onTabAdd={() => onTabAdd(panel.id)}
         onTabClose={(tabId) => onTabClose(panel.id, tabId)}
+        onTabDrop={(fromPanelId, tabId, toIndex) =>
+          onTabMove(fromPanelId, tabId, panel.id, toIndex)
+        }
         onSave={() => onSave(panel.id)}
         onImportFile={() => {}}
         onExportFile={() => {}}

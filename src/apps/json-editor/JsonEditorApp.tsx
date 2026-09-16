@@ -294,6 +294,67 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
     persistState(layout, newPanels);
   };
 
+  const handleTabMove = (
+    fromPanelId: PanelId,
+    tabId: string,
+    toPanelId: PanelId,
+    toIndex: number
+  ) => {
+    if (fromPanelId === toPanelId) {
+      const newPanels = panels.map((p) => {
+        if (p.id !== fromPanelId) return p;
+        const tabs = [...p.tabs];
+        const fromIndex = tabs.findIndex((t) => t.id === tabId);
+        if (fromIndex === -1) return p;
+        const [moved] = tabs.splice(fromIndex, 1);
+        const insertAt = Math.max(
+          0,
+          Math.min(fromIndex < toIndex ? toIndex - 1 : toIndex, tabs.length)
+        );
+        tabs.splice(insertAt, 0, moved);
+        return { ...p, tabs, activeTabId: tabId };
+      });
+      setPanels(newPanels);
+      persistState(layout, newPanels);
+      return;
+    }
+
+    const sourcePanel = panels.find((p) => p.id === fromPanelId);
+    const movedTab = sourcePanel?.tabs.find((t) => t.id === tabId);
+    if (!movedTab) return;
+
+    const newPanels = panels.map((p) => {
+      if (p.id === fromPanelId) {
+        const closingIndex = p.tabs.findIndex((t) => t.id === tabId);
+        const remaining = p.tabs.filter((t) => t.id !== tabId);
+        if (remaining.length === 0) {
+          const tab = createDefaultTab(
+            DEFAULT_PANEL_TITLES[p.id] ?? `Document ${p.id + 1}`
+          );
+          return { ...p, activeTabId: tab.id, tabs: [tab] };
+        }
+        let activeTabId = p.activeTabId;
+        if (activeTabId === tabId) {
+          const newActiveIndex = Math.min(
+            Math.max(0, closingIndex - 1),
+            remaining.length - 1
+          );
+          activeTabId = remaining[newActiveIndex].id;
+        }
+        return { ...p, activeTabId, tabs: remaining };
+      }
+      if (p.id === toPanelId) {
+        const tabs = [...p.tabs];
+        const insertAt = Math.max(0, Math.min(toIndex, tabs.length));
+        tabs.splice(insertAt, 0, movedTab);
+        return { ...p, activeTabId: movedTab.id, tabs };
+      }
+      return p;
+    });
+    setPanels(newPanels);
+    persistState(layout, newPanels);
+  };
+
   useImperativeHandle(ref, () => ({
     setLayout: handleLayoutChange,
     formatAll: handleFormatAll,
@@ -325,6 +386,7 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
           onTabSelect={handleTabSelect}
           onTabAdd={handleTabAdd}
           onTabClose={handleTabClose}
+          onTabMove={handleTabMove}
           onSave={handleSavePanel}
           onCompare={handleCompare}
         />

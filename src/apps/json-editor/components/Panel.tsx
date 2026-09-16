@@ -18,6 +18,7 @@ interface Props {
   onTabSelect: (tabId: string) => void;
   onTabAdd: () => void;
   onTabClose: (tabId: string) => void;
+  onTabDrop: (fromPanelId: PanelId, tabId: string, toIndex: number) => void;
   onSave: () => void;
   onImportFile: () => void;
   onExportFile: () => void;
@@ -56,11 +57,13 @@ export default function Panel(props: Props) {
   return (
     <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
       <TabStrip
+        panelId={props.panelId}
         tabs={props.tabs}
         activeTabId={props.activeTabId}
         onSelect={props.onTabSelect}
         onAdd={props.onTabAdd}
         onClose={props.onTabClose}
+        onTabDrop={props.onTabDrop}
       />
       <PanelHeader
         title={props.title}
