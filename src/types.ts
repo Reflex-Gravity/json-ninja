@@ -39,7 +39,6 @@ export interface SavedDocument {
 
 export interface AppPreferences {
   theme: Theme;
-  activeTool: ToolId;
 }
 
 export interface SvgToolState {
