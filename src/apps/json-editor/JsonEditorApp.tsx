@@ -91,9 +91,9 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
   const [savePanelId, setSavePanelId] = useState<PanelId>(0);
   const [compareState, setCompareState] = useState<{
     open: boolean;
-    leftId: PanelId;
-    rightId: PanelId;
-  }>({ open: false, leftId: 0, rightId: 1 });
+    left: { panelId: PanelId; tabId: string } | null;
+    right: { panelId: PanelId; tabId: string } | null;
+  }>({ open: false, left: null, right: null });
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef<JsonEditorState | null>(null);
@@ -232,13 +232,18 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
   };
 
   const handleCompare = (id: PanelId) => {
-    const otherId = panels.find(
+    const leftTab = getActiveTab(panels[id]);
+    const otherPanel = panels.find(
       (p) => p.id !== id && getActiveTab(p).content.trim()
-    )?.id;
+    );
+    const fallbackPanel = panels.find((p) => p.id !== id);
+    const rightPanel = otherPanel ?? fallbackPanel;
     setCompareState({
       open: true,
-      leftId: id,
-      rightId: otherId ?? (id === 0 ? 1 : 0),
+      left: { panelId: id, tabId: leftTab.id },
+      right: rightPanel
+        ? { panelId: rightPanel.id, tabId: getActiveTab(rightPanel).id }
+        : null,
     });
   };
 
@@ -370,9 +375,6 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
     );
   }
 
-  const leftPanel = panels[compareState.leftId];
-  const rightPanel = panels[compareState.rightId];
-
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div className="flex-1 overflow-hidden">
@@ -409,10 +411,9 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
       <CompareDialog
         open={compareState.open}
         onClose={() => setCompareState({ ...compareState, open: false })}
-        leftTitle={leftPanel ? getActiveTab(leftPanel).title : 'Left'}
-        rightTitle={rightPanel ? getActiveTab(rightPanel).title : 'Right'}
-        leftContent={leftPanel ? getActiveTab(leftPanel).content : ''}
-        rightContent={rightPanel ? getActiveTab(rightPanel).content : ''}
+        panels={panels}
+        initialLeft={compareState.left}
+        initialRight={compareState.right}
       />
     </div>
   );
