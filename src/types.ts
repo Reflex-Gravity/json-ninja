@@ -6,7 +6,7 @@ export type Theme = 'light' | 'dark';
 
 export type PanelId = 0 | 1 | 2 | 3;
 
-export type ToolId = 'json' | 'svg' | 'html' | 'base64';
+export type ToolId = 'json' | 'svg' | 'html' | 'base64' | 'compare' | 'stringify';
 
 export interface TabState {
   id: string;
@@ -52,6 +52,25 @@ export interface HtmlToolState {
 export interface Base64ToolState {
   mode: 'encode' | 'decode';
   input: string;
+}
+
+export interface CompareToolState {
+  left: string;
+  right: string;
+  ignoreWhitespace: boolean;
+  ignoreCase: boolean;
+  normalizeJson: boolean;
+}
+
+export type StringifyMode = 'stringify' | 'parse' | 'to-curl' | 'from-curl';
+
+export interface StringifyToolState {
+  mode: StringifyMode;
+  input: string;
+  minify: boolean;
+  method: string;
+  url: string;
+  shell: 'bash' | 'cmd';
 }
 
 export const MAX_PANELS: Record<LayoutType, number> = {

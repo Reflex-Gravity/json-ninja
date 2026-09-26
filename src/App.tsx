@@ -11,6 +11,8 @@ import JsonEditorApp, { type JsonEditorHandle } from '@/apps/json-editor/JsonEdi
 const SvgPreviewApp = lazy(() => import('@/apps/svg-preview/SvgPreviewApp'));
 const HtmlPreviewApp = lazy(() => import('@/apps/html-preview/HtmlPreviewApp'));
 const Base64App = lazy(() => import('@/apps/base64/Base64App'));
+const CompareApp = lazy(() => import('@/apps/compare/CompareApp'));
+const StringifyApp = lazy(() => import('@/apps/stringify/StringifyApp'));
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>('dark');
@@ -121,6 +123,8 @@ export default function App() {
             {activeTool === 'svg' && <SvgPreviewApp />}
             {activeTool === 'html' && <HtmlPreviewApp />}
             {activeTool === 'base64' && <Base64App />}
+            {activeTool === 'compare' && <CompareApp />}
+            {activeTool === 'stringify' && <StringifyApp />}
           </Suspense>
         </div>
       </div>
