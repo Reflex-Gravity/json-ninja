@@ -1,4 +1,4 @@
-import { Braces, Image, FileCode2, Binary } from 'lucide-react';
+import { Braces, Image, FileCode2, Binary, GitCompare, Quote } from 'lucide-react';
 import type { ToolId } from '@/types';
 
 export const TOOLS: {
@@ -44,6 +44,24 @@ export const TOOLS: {
     title: 'Base64 Encoder & Decoder Online – GravityTools',
     description:
       'Free online Base64 encoder and decoder for text and files. Fast, private, and processed entirely in your browser—your data never leaves your computer.',
+  },
+  {
+    id: 'compare',
+    label: 'Text Compare',
+    icon: GitCompare,
+    path: '/compare',
+    title: 'Text Compare & Diff Checker Online – GravityTools',
+    description:
+      'Free online text and JSON diff checker. Compare two texts side by side with line and word-level highlighting, entirely in your browser with no upload to a server.',
+  },
+  {
+    id: 'stringify',
+    label: 'JSON Stringify & cURL',
+    icon: Quote,
+    path: '/stringify',
+    title: 'JSON Stringify, Unescape & cURL Converter Online – GravityTools',
+    description:
+      'Free online JSON stringify/parse tool and cURL converter. Escape JSON into a string, unescape it back, build a curl command with a properly quoted body, or extract JSON from a curl command—100% in your browser.',
   },
 ];
 
