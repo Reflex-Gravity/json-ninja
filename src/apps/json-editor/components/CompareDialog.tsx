@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
 import { formatJson, tryParseJson } from '@/lib/json-utils';
 import { buildSideBySideDiff } from '@/lib/diff-utils';
+import DiffView from '@/components/DiffView';
 import type { PanelId, PanelState } from '@/types';
 import { findTab } from '../tabs';
 
@@ -150,43 +151,8 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
           </div>
         )}
 
-        <div className="flex-1 overflow-auto min-h-0 font-mono text-xs">
-          <table className="w-full border-collapse">
-            <tbody>
-              {diff?.rows.map((row, i) => (
-                <tr key={i}>
-                  <td
-                    className={`w-10 text-right pr-2 select-none align-top text-gray-400 dark:text-gray-500 ${
-                      row.type === 'removed' ? 'bg-red-50 dark:bg-red-950/40' : ''
-                    }`}
-                  >
-                    {row.leftNum ?? ''}
-                  </td>
-                  <td
-                    className={`w-1/2 whitespace-pre px-2 align-top text-gray-700 dark:text-gray-200 ${
-                      row.type === 'removed' ? 'bg-red-50 dark:bg-red-950/40' : ''
-                    }`}
-                  >
-                    {row.leftLine ?? ''}
-                  </td>
-                  <td
-                    className={`w-10 text-right pr-2 select-none align-top text-gray-400 dark:text-gray-500 border-l border-gray-100 dark:border-gray-700 ${
-                      row.type === 'added' ? 'bg-green-50 dark:bg-green-950/40' : ''
-                    }`}
-                  >
-                    {row.rightNum ?? ''}
-                  </td>
-                  <td
-                    className={`w-1/2 whitespace-pre px-2 align-top text-gray-700 dark:text-gray-200 ${
-                      row.type === 'added' ? 'bg-green-50 dark:bg-green-950/40' : ''
-                    }`}
-                  >
-                    {row.rightLine ?? ''}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="flex-1 overflow-auto min-h-0">
+          {diff && <DiffView rows={diff.rows} />}
         </div>
       </div>
     </div>
