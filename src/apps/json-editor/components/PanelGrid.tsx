@@ -15,6 +15,7 @@ interface Props {
   onTabClose: (id: PanelId, tabId: string) => void;
   onTabMove: (fromPanelId: PanelId, tabId: string, toPanelId: PanelId, toIndex: number) => void;
   onSave: (id: PanelId) => void;
+  onShare: (id: PanelId) => void;
   onCompare?: (id: PanelId) => void;
 }
 
@@ -30,6 +31,7 @@ export default function PanelGrid({
   onTabClose,
   onTabMove,
   onSave,
+  onShare,
   onCompare,
 }: Props) {
   const [splitH, setSplitH] = useState(50);
@@ -107,6 +109,7 @@ export default function PanelGrid({
         onSave={() => onSave(panel.id)}
         onImportFile={() => {}}
         onExportFile={() => {}}
+        onShare={() => onShare(panel.id)}
         onCompare={compareId !== undefined ? () => onCompare?.(panel.id) : undefined}
       />
     );

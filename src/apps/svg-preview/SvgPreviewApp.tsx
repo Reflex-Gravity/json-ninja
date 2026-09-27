@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { SvgToolState } from '@/types';
 import { getToolState, saveToolState } from '@/lib/db';
+import { setShareableState } from '@/lib/share';
 import { byteSize } from '@/lib/json-utils';
 import PreviewFrame from '@/components/PreviewFrame';
 import SandboxToggle from '@/components/SandboxToggle';
@@ -57,6 +58,8 @@ export default function SvgPreviewApp() {
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
     };
   }, []);
+
+  useEffect(() => setShareableState(TOOL_KEY, { content }), [content]);
 
   const handleContentChange = (value: string) => {
     setContent(value);

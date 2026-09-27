@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Copy, Check, ArrowLeftRight } from 'lucide-react';
 import type { StringifyMode, StringifyToolState } from '@/types';
 import { getToolState, saveToolState } from '@/lib/db';
+import { setShareableState } from '@/lib/share';
 import {
   stringifyText,
   parseStringified,
@@ -92,6 +93,8 @@ export default function StringifyApp() {
       if (pendingRef.current) saveToolState(TOOL_KEY, pendingRef.current);
     };
   }, []);
+
+  useEffect(() => setShareableState(TOOL_KEY, state), [state]);
 
   const update = (patch: Partial<StringifyToolState>) => {
     const next = { ...state, ...patch };

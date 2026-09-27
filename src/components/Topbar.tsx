@@ -10,6 +10,9 @@ import {
   Grid2x2,
   FolderOpen,
   Link as LinkIcon,
+  Share2,
+  Command,
+  Sparkles,
   X,
 } from 'lucide-react';
 import type { Theme, ToolId, LayoutType } from '@/types';
@@ -25,7 +28,18 @@ interface Props {
   onFormatAll?: () => void;
   onOpenDocuments?: () => void;
   onImportUrl?: (text: string, panelIndex: number) => void;
+  urlModalOpen: boolean;
+  onUrlModalOpenChange: (open: boolean) => void;
+  onOpenPalette: () => void;
+  onOpenWhatsNew: () => void;
+  hasUnseenUpdates: boolean;
+  onShare?: () => void;
 }
+
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+
+const iconButtonClass =
+  'flex items-center gap-1.5 p-1.5 rounded-md text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0';
 
 const layoutOptions: { type: LayoutType; label: string; icon: typeof Square }[] = [
   { type: 'single', label: '1 Panel', icon: Square },
@@ -44,11 +58,16 @@ export default function Topbar({
   onFormatAll,
   onOpenDocuments,
   onImportUrl,
+  urlModalOpen,
+  onUrlModalOpenChange: setUrlModalOpen,
+  onOpenPalette,
+  onOpenWhatsNew,
+  hasUnseenUpdates,
+  onShare,
 }: Props) {
   const activeLabel = TOOLS.find((t) => t.id === activeTool)?.label ?? '';
   const showPanelConfig = activeTool === 'json' && jsonLayout && onJsonLayoutChange;
 
-  const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [url, setUrl] = useState('');
   const [panelIndex, setPanelIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -117,29 +136,53 @@ export default function Topbar({
 
         {showPanelConfig && (
           <div className="flex items-center gap-0.5 flex-shrink-0">
-            <button
-              onClick={onFormatAll}
-              title="Format all panels"
-              className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
+            <button onClick={onFormatAll} title="Format all panels" className={iconButtonClass}>
               <Braces className="w-4 h-4" />
+              <span className="hidden lg:inline">Format all</span>
             </button>
-            <button
-              onClick={() => setUrlModalOpen(true)}
-              title="Import from URL"
-              className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
+            <button onClick={() => setUrlModalOpen(true)} title="Import from URL" className={iconButtonClass}>
               <LinkIcon className="w-4 h-4" />
+              <span className="hidden lg:inline">Import URL</span>
             </button>
-            <button
-              onClick={onOpenDocuments}
-              title="Open saved documents"
-              className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            >
+            <button onClick={onOpenDocuments} title="Open saved documents" className={iconButtonClass}>
               <FolderOpen className="w-4 h-4" />
+              <span className="hidden lg:inline">Documents</span>
             </button>
           </div>
         )}
+
+        {onShare && (
+          <button onClick={onShare} title="Copy a share link to this tool's content" className={iconButtonClass}>
+            <Share2 className="w-4 h-4" />
+            <span className="hidden lg:inline">Share</span>
+          </button>
+        )}
+
+        <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+
+        <button
+          onClick={onOpenPalette}
+          title="Command palette"
+          className="flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+        >
+          <Command className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">Commands</span>
+          <kbd className="text-[10px] font-sans bg-gray-100 dark:bg-gray-700 rounded px-1 py-0.5">
+            {isMac ? '⌘K' : 'Ctrl K'}
+          </kbd>
+        </button>
+
+        <button
+          onClick={onOpenWhatsNew}
+          title="What's new"
+          aria-label={hasUnseenUpdates ? "What's new (unread updates)" : "What's new"}
+          className="relative p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+        >
+          <Sparkles className="w-4 h-4" />
+          {hasUnseenUpdates && (
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-blue-500" />
+          )}
+        </button>
 
         <button
           onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}

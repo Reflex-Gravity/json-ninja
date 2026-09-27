@@ -3,6 +3,7 @@ import { PanelId, EditorMode, TabState } from '@/types';
 import JSONEditorWrapper from './JSONEditorWrapper';
 import PanelHeader from './PanelHeader';
 import TabStrip, { readTabDragPayload } from './TabStrip';
+import { downloadJson } from '../panel-actions';
 
 interface Props {
   panelId: PanelId;
@@ -22,6 +23,7 @@ interface Props {
   onSave: () => void;
   onImportFile: () => void;
   onExportFile: () => void;
+  onShare: () => void;
   onCompare?: () => void;
 }
 
@@ -60,13 +62,7 @@ export default function Panel(props: Props) {
   };
 
   const handleExportFile = () => {
-    const blob = new Blob([props.content], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${props.title.replace(/\s+/g, '-').toLowerCase() || 'document'}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadJson(props.title, props.content);
   };
 
   return (
@@ -90,6 +86,7 @@ export default function Panel(props: Props) {
         onSave={props.onSave}
         onImportFile={handleImportFile}
         onExportFile={handleExportFile}
+        onShare={props.onShare}
         onCompare={props.onCompare}
       />
       <div

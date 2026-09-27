@@ -19,6 +19,12 @@ happens in the browser; documents and preferences persist to IndexedDB (`src/lib
 
 There is no test runner configured in this repo.
 
+**Versioning**: a `post-commit` hook (`.githooks/post-commit` → `scripts/bump-version.mjs`,
+enabled by the `prepare` script via `core.hooksPath`) bumps `package.json`/`package-lock.json` and
+amends it into each commit: `feat!:`/`BREAKING CHANGE:` → major, `feat:` → minor, anything else →
+patch. `SKIP_VERSION_BUMP=1 git commit …` opts out. The "What's new" popup is driven separately by
+the hand-written `RELEASES` list in `src/lib/changelog.ts`.
+
 ## Architecture
 
 **State lives in `App.tsx`**, not in the individual panel/editor components. `App` owns `layout`,

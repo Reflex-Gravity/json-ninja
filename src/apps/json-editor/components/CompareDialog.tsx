@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
 import { formatJson, tryParseJson } from '@/lib/json-utils';
 import { buildSideBySideDiff } from '@/lib/diff-utils';
+import { diffJson } from '@/lib/json-diff';
 import DiffView from '@/components/DiffView';
-import type { PanelId, PanelState } from '@/types';
+import JsonDiffView from '@/components/JsonDiffView';
+import type { CompareMode, PanelId, PanelState } from '@/types';
 import { findTab } from '../tabs';
 
 interface DocRef {
@@ -45,9 +47,19 @@ function formattedFor(panels: PanelState[], ref: DocRef | null): string {
   }
 }
 
+function structuralDiff(panels: PanelState[], left: DocRef | null, right: DocRef | null) {
+  try {
+    const parse = (ref: DocRef | null) => JSON.parse(resolveContent(panels, ref) || 'null');
+    return { changes: diffJson(parse(left), parse(right)), error: null };
+  } catch (e) {
+    return { changes: [], error: `Both documents must be valid JSON: ${(e as Error).message}` };
+  }
+}
+
 export default function CompareDialog({ open, onClose, panels, initialLeft, initialRight }: Props) {
   const [left, setLeft] = useState<DocRef | null>(initialLeft);
   const [right, setRight] = useState<DocRef | null>(initialRight);
+  const [mode, setMode] = useState<CompareMode>('text');
 
   useEffect(() => {
     if (open) {
@@ -71,9 +83,14 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
   );
 
   const diff = useMemo(() => {
-    if (!open) return null;
+    if (!open || mode !== 'text') return null;
     return buildSideBySideDiff(formattedFor(panels, left), formattedFor(panels, right));
-  }, [open, panels, left, right]);
+  }, [open, mode, panels, left, right]);
+
+  const jsonDiff = useMemo(() => {
+    if (!open || mode !== 'json') return null;
+    return structuralDiff(panels, left, right);
+  }, [open, mode, panels, left, right]);
 
   if (!open) return null;
 
@@ -96,7 +113,25 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-[95vw] h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Compare Documents</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Compare Documents</h2>
+            <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">
+              {(['text', 'json'] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  title={m === 'text' ? 'Line-by-line text diff' : 'Key-aware diff that ignores key order and formatting'}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                    mode === m
+                      ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {m === 'text' ? 'Text' : 'JSON structure'}
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
@@ -151,8 +186,23 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
           </div>
         )}
 
+        {jsonDiff && (
+          <div className="px-5 py-2 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
+            {jsonDiff.error ? (
+              <p className="text-xs text-red-500 dark:text-red-400">{jsonDiff.error}</p>
+            ) : jsonDiff.changes.length === 0 ? (
+              <p className="text-xs text-green-600 dark:text-green-400">Documents are structurally identical</p>
+            ) : (
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                {jsonDiff.changes.length} difference{jsonDiff.changes.length === 1 ? '' : 's'}
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="flex-1 overflow-auto min-h-0">
           {diff && <DiffView rows={diff.rows} />}
+          {jsonDiff && jsonDiff.changes.length > 0 && <JsonDiffView changes={jsonDiff.changes} />}
         </div>
       </div>
     </div>
