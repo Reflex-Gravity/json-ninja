@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Copy, Check, Upload, Download } from 'lucide-react';
 import type { Base64ToolState } from '@/types';
 import { getToolState, saveToolState } from '@/lib/db';
+import { setShareableState } from '@/lib/share';
 import {
   encodeBase64Text,
   decodeBase64Text,
@@ -51,6 +52,8 @@ export default function Base64App() {
       if (pendingRef.current) saveToolState(TOOL_KEY, pendingRef.current);
     };
   }, []);
+
+  useEffect(() => setShareableState(TOOL_KEY, { mode, input }), [mode, input]);
 
   const handleModeChange = (newMode: 'encode' | 'decode') => {
     setMode(newMode);

@@ -1,24 +1,24 @@
-import { useState } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import {
-  AlignLeft,
+  MoreHorizontal,
   Table as TableIcon,
   GitBranch,
+  GitCompare,
   Code2,
-  Minimize2,
-  Braces,
-  Wrench,
   Copy,
   Trash2,
   Download,
   Upload,
   Search,
-  FileText,
   Save,
+  Share2,
   Check,
   X,
 } from 'lucide-react';
 import type { EditorMode } from '@/types';
-import { formatJson, compactJson, sortJsonKeys, repairJson, tryParseJson, byteSize } from '@/lib/json-utils';
+import { tryParseJson, byteSize } from '@/lib/json-utils';
+import { showToast } from '@/lib/toast';
+import { PANEL_TRANSFORMS } from '../panel-actions';
 
 interface Props {
   title: string;
@@ -30,7 +30,18 @@ interface Props {
   onSave: () => void;
   onImportFile: () => void;
   onExportFile: () => void;
+  onShare: () => void;
   onCompare?: () => void;
+}
+
+interface HeaderAction {
+  id: string;
+  label: string;
+  icon: typeof Code2;
+  // Actions in the same group sit together; a divider separates groups.
+  group: number;
+  onClick: () => void;
+  danger?: boolean;
 }
 
 const modes: { mode: EditorMode; label: string; icon: typeof Code2 }[] = [
@@ -38,6 +49,26 @@ const modes: { mode: EditorMode; label: string; icon: typeof Code2 }[] = [
   { mode: 'code', label: 'Code', icon: Code2 },
   { mode: 'table', label: 'Table', icon: TableIcon },
 ];
+
+// Pixel sizes of the header's building blocks, used to decide how many actions fit inline.
+const BUTTON_WIDTH = 30;
+const DIVIDER_WIDTH = 9;
+const TITLE_MIN_WIDTH = 72;
+const ROW_PADDING = 20;
+
+function countFitting(actions: HeaderAction[], available: number): number {
+  const widthOf = (count: number) =>
+    actions
+      .slice(0, count)
+      .reduce(
+        (sum, a, i) => sum + BUTTON_WIDTH + (i > 0 && a.group !== actions[i - 1].group ? DIVIDER_WIDTH : 0),
+        0
+      );
+  if (widthOf(actions.length) <= available) return actions.length;
+  let count = actions.length - 1;
+  while (count > 0 && widthOf(count) + DIVIDER_WIDTH + BUTTON_WIDTH > available) count--;
+  return count;
+}
 
 export default function PanelHeader({
   title,
@@ -49,6 +80,7 @@ export default function PanelHeader({
   onSave,
   onImportFile,
   onExportFile,
+  onShare,
   onCompare,
 }: Props) {
   const [editingTitle, setEditingTitle] = useState(false);
@@ -58,17 +90,11 @@ export default function PanelHeader({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  const rowRef = useRef<HTMLDivElement>(null);
+  const modesRef = useRef<HTMLDivElement>(null);
+
   const validation = tryParseJson(content);
   const size = byteSize(content);
-
-  const handleAction = (fn: () => void) => {
-    try {
-      fn();
-    } catch (e) {
-      console.error(e);
-    }
-    setMenuOpen(false);
-  };
 
   const handleCopy = async () => {
     try {
@@ -78,12 +104,6 @@ export default function PanelHeader({
     } catch {
       // ignore
     }
-    setMenuOpen(false);
-  };
-
-  const handleClear = () => {
-    onContentChange('');
-    setMenuOpen(false);
   };
 
   const saveTitle = () => {
@@ -91,11 +111,58 @@ export default function PanelHeader({
     setEditingTitle(false);
   };
 
+  const actions: HeaderAction[] = [
+    ...PANEL_TRANSFORMS.map(({ label, icon, apply }) => ({
+      id: label,
+      label,
+      icon,
+      group: 0,
+      onClick: () => {
+        try {
+          onContentChange(apply(content));
+        } catch (e) {
+          showToast(`${label} failed: ${(e as Error).message}`, 'error');
+        }
+      },
+    })),
+    { id: 'copy', label: copied ? 'Copied!' : 'Copy', icon: copied ? Check : Copy, group: 1, onClick: handleCopy },
+    { id: 'search', label: 'Search', icon: Search, group: 1, onClick: () => setSearchOpen(!searchOpen) },
+    { id: 'save', label: 'Save to documents', icon: Save, group: 2, onClick: onSave },
+    { id: 'import', label: 'Import file', icon: Upload, group: 2, onClick: onImportFile },
+    { id: 'export', label: 'Export file', icon: Download, group: 2, onClick: onExportFile },
+    { id: 'share', label: 'Copy share link', icon: Share2, group: 2, onClick: onShare },
+    ...(onCompare
+      ? [{ id: 'compare', label: 'Compare', icon: GitCompare, group: 3, onClick: onCompare }]
+      : []),
+    { id: 'clear', label: 'Clear', icon: Trash2, group: 3, onClick: () => onContentChange(''), danger: true },
+  ];
+
+  const [visibleCount, setVisibleCount] = useState(actions.length);
+
+  // Show as many actions inline as the panel width allows; the rest go in the overflow menu.
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!row) return;
+    const measure = () => {
+      const available =
+        row.clientWidth - (modesRef.current?.offsetWidth ?? 0) - TITLE_MIN_WIDTH - ROW_PADDING;
+      setVisibleCount(countFitting(actions, available));
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(row);
+    measure();
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actions.length]);
+
+  const inline = actions.slice(0, visibleCount);
+  const overflow = actions.slice(visibleCount);
+
   return (
     <div className="relative flex flex-col border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 select-none">
-      <div className="flex items-center gap-1 px-2 py-1.5 min-h-[40px]">
+      <div ref={rowRef} className="flex items-center gap-1 px-2 py-1.5 min-h-[40px]">
         {/* Mode switcher */}
-        <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">
+        <div ref={modesRef} className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-md p-0.5 flex-shrink-0">
           {modes.map(({ mode: m, label, icon: Icon }) => (
             <button
               key={m}
@@ -148,43 +215,39 @@ export default function PanelHeader({
           )}
         </div>
 
-        {/* Quick actions */}
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => setSearchOpen(!searchOpen)}
-            title="Search"
-            className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-          >
-            <Search className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onSave}
-            title="Save to documents"
-            className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-          >
-            <Save className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onImportFile}
-            title="Import file"
-            className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-          >
-            <Upload className="w-4 h-4" />
-          </button>
-          <button
-            onClick={onExportFile}
-            title="Export file"
-            className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            title="More actions"
-            className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-          >
-            <AlignLeft className="w-4 h-4" />
-          </button>
+        {/* Inline actions */}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          {inline.map(({ id, label, icon: Icon, group, onClick, danger }, i) => (
+            <div key={id} className="flex items-center gap-0.5">
+              {i > 0 && group !== inline[i - 1].group && (
+                <div className="w-px h-4 mx-1 bg-gray-200 dark:bg-gray-700" />
+              )}
+              <button
+                onClick={onClick}
+                title={label}
+                aria-label={label}
+                className={`p-1.5 rounded transition-colors ${
+                  danger
+                    ? 'text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          {overflow.length > 0 && (
+            <>
+              <div className="w-px h-4 mx-1 bg-gray-200 dark:bg-gray-700" />
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                title="More actions"
+                className="p-1.5 rounded text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -217,25 +280,27 @@ export default function PanelHeader({
         </div>
       )}
 
-      {/* Dropdown menu */}
-      {menuOpen && (
+      {/* Overflow menu */}
+      {menuOpen && overflow.length > 0 && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
           <div className="absolute right-2 top-9 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[180px]">
-            <MenuItem icon={Braces} label="Format" onClick={() => handleAction(() => onContentChange(formatJson(content)))} />
-            <MenuItem icon={Minimize2} label="Compact" onClick={() => handleAction(() => onContentChange(compactJson(content)))} />
-            <MenuItem icon={AlignLeft} label="Sort keys" onClick={() => handleAction(() => onContentChange(sortJsonKeys(content)))} />
-            <MenuItem icon={Wrench} label="Repair JSON" onClick={() => handleAction(() => onContentChange(repairJson(content)))} />
-            <div className="border-t border-gray-100 dark:border-gray-700 my-1" />
-            <MenuItem icon={copied ? Check : Copy} label={copied ? 'Copied!' : 'Copy'} onClick={handleCopy} />
-            {onCompare && (
-              <>
-                <div className="border-t border-gray-100 dark:border-gray-700 my-1" />
-                <MenuItem icon={FileText} label="Compare" onClick={() => { onCompare(); setMenuOpen(false); }} />
-              </>
-            )}
-            <div className="border-t border-gray-100 dark:border-gray-700 my-1" />
-            <MenuItem icon={Trash2} label="Clear" onClick={handleClear} danger />
+            {overflow.map(({ id, label, icon, group, onClick, danger }, i) => (
+              <div key={id}>
+                {i > 0 && group !== overflow[i - 1].group && (
+                  <div className="border-t border-gray-100 dark:border-gray-700 my-1" />
+                )}
+                <MenuItem
+                  icon={icon}
+                  label={label}
+                  danger={danger}
+                  onClick={() => {
+                    onClick();
+                    setMenuOpen(false);
+                  }}
+                />
+              </div>
+            ))}
           </div>
         </>
       )}

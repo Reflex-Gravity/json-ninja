@@ -17,7 +17,10 @@ import {
   saveDocument,
 } from '@/lib/db';
 import { formatJson, generateId } from '@/lib/json-utils';
+import { copyShareLink, type SharedJsonTab } from '@/lib/share';
+import { showToast } from '@/lib/toast';
 import { createDefaultTab, getActiveTab } from './tabs';
+import { PANEL_TRANSFORMS, downloadJson, type PanelActionId } from './panel-actions';
 import PanelGrid from './components/PanelGrid';
 import DocumentDialog from './components/DocumentDialog';
 import SaveDialog from './components/SaveDialog';
@@ -26,6 +29,9 @@ import CompareDialog from './components/CompareDialog';
 interface Props {
   theme: Theme;
   onLayoutChange?: (layout: LayoutType) => void;
+  // Document opened from a share link; appended as a new tab in the first panel once loaded.
+  sharedTab?: SharedJsonTab | null;
+  onSharedTabConsumed?: () => void;
 }
 
 export interface JsonEditorHandle {
@@ -33,6 +39,7 @@ export interface JsonEditorHandle {
   formatAll: () => void;
   openDocuments: () => void;
   importUrl: (text: string, panelIndex: number) => void;
+  runPanelAction: (panelId: PanelId, action: PanelActionId) => void;
 }
 
 function ensurePanelHasTab(panel: PanelState | undefined, index: number): PanelState {
@@ -81,7 +88,19 @@ function migrateLegacyPanels(legacyPanels: LegacyPanelState[]): PanelState[] {
   return padPanels(panels);
 }
 
-function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEditorHandle>) {
+function appendSharedTab(panels: PanelState[], shared: SharedJsonTab): PanelState[] {
+  const tab: TabState = {
+    ...createDefaultTab(''),
+    ...shared,
+    title: shared.title || 'Shared document',
+  };
+  return panels.map((p, i) =>
+    i === 0 ? { ...p, activeTabId: tab.id, tabs: [...p.tabs, tab] } : p
+  );
+}
+
+function JsonEditorApp(
+  { theme, onLayoutChange, sharedTab, onSharedTabConsumed }: Props, ref: React.Ref<JsonEditorHandle>) {
   const [layout, setLayout] = useState<LayoutType>('horizontal');
   const [panels, setPanels] = useState<PanelState[]>(() => createDefaultPanels());
   const [loaded, setLoaded] = useState(false);
@@ -101,14 +120,24 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
   // Load state on mount, migrating from the pre-tabs preferences shape if needed.
   useEffect(() => {
     let cancelled = false;
+    const finish = (loadedLayout: LayoutType, loadedPanels: PanelState[]) => {
+      if (sharedTab) {
+        const withShared = appendSharedTab(loadedPanels, sharedTab);
+        setPanels(withShared);
+        saveJsonEditorState({ layout: loadedLayout, panels: withShared });
+        onSharedTabConsumed?.();
+      }
+      setLoaded(true);
+    };
     (async () => {
       const state = await getJsonEditorState();
       if (cancelled) return;
       if (state) {
+        const loadedPanels = padPanels(state.panels);
         setLayout(state.layout);
         onLayoutChange?.(state.layout);
-        setPanels(padPanels(state.panels));
-        setLoaded(true);
+        setPanels(loadedPanels);
+        finish(state.layout, loadedPanels);
         return;
       }
       const legacy = await getLegacyPreferencesRaw();
@@ -127,8 +156,10 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
         onLayoutChange?.(migratedLayout);
         setPanels(migratedPanels);
         await saveJsonEditorState({ layout: migratedLayout, panels: migratedPanels });
+        if (!cancelled) finish(migratedLayout, migratedPanels);
+        return;
       }
-      if (!cancelled) setLoaded(true);
+      if (!cancelled) finish(layout, panels);
     })();
     return () => {
       cancelled = true;
@@ -245,6 +276,44 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
         ? { panelId: rightPanel.id, tabId: getActiveTab(rightPanel).id }
         : null,
     });
+  };
+
+  const handleShare = (id: PanelId) => {
+    const { title, mode, content } = getActiveTab(panels[id]);
+    copyShareLink('json', { title, mode, content });
+  };
+
+  const runPanelAction = (id: PanelId, action: PanelActionId) => {
+    const tab = getActiveTab(panels[id]);
+    const transform = PANEL_TRANSFORMS.find((t) => t.id === action);
+    if (transform) {
+      try {
+        handleContentChange(id, transform.apply(tab.content));
+      } catch (e) {
+        showToast(`${transform.label} failed: ${(e as Error).message}`, 'error');
+      }
+      return;
+    }
+    switch (action) {
+      case 'copy':
+        navigator.clipboard.writeText(tab.content).then(
+          () => showToast('Copied to clipboard', 'success'),
+          () => showToast('Could not access the clipboard', 'error')
+        );
+        break;
+      case 'share':
+        handleShare(id);
+        break;
+      case 'compare':
+        handleCompare(id);
+        break;
+      case 'export':
+        downloadJson(tab.title, tab.content);
+        break;
+      case 'clear':
+        handleContentChange(id, '');
+        break;
+    }
   };
 
   const handleImportUrl = (text: string, panelIndex: number) => {
@@ -365,6 +434,7 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
     formatAll: handleFormatAll,
     openDocuments: () => setDocDialogOpen(true),
     importUrl: handleImportUrl,
+    runPanelAction,
   }));
 
   if (!loaded) {
@@ -390,6 +460,7 @@ function JsonEditorApp({ theme, onLayoutChange }: Props, ref: React.Ref<JsonEdit
           onTabClose={handleTabClose}
           onTabMove={handleTabMove}
           onSave={handleSavePanel}
+          onShare={handleShare}
           onCompare={handleCompare}
         />
       </div>

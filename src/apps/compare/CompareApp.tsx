@@ -1,20 +1,53 @@
 import { useState, useEffect, useRef, useCallback, useMemo, useDeferredValue } from 'react';
 import { ArrowLeftRight, Eraser } from 'lucide-react';
-import type { CompareToolState } from '@/types';
+import type { CompareMode, CompareToolState } from '@/types';
 import { getToolState, saveToolState } from '@/lib/db';
 import { buildSideBySideDiff } from '@/lib/diff-utils';
+import { diffJson, type JsonChange } from '@/lib/json-diff';
 import { sortJsonKeys, tryParseJson } from '@/lib/json-utils';
+import { setShareableState } from '@/lib/share';
 import DiffView from '@/components/DiffView';
+import JsonDiffView from '@/components/JsonDiffView';
 
 const TOOL_KEY = 'compare';
 
 const DEFAULT_STATE: CompareToolState = {
+  mode: 'text',
   left: '',
   right: '',
   ignoreWhitespace: false,
   ignoreCase: false,
   normalizeJson: false,
+  ignoreArrayOrder: false,
 };
+
+const MODES: { id: CompareMode; label: string; title: string }[] = [
+  { id: 'text', label: 'Text', title: 'Line-by-line text diff' },
+  { id: 'json', label: 'JSON structure', title: 'Key-aware diff that ignores key order and formatting' },
+];
+
+type Toggle = { key: 'ignoreWhitespace' | 'ignoreCase' | 'normalizeJson' | 'ignoreArrayOrder'; label: string; title: string };
+
+const TOGGLES: Record<CompareMode, Toggle[]> = {
+  text: [
+    { key: 'ignoreWhitespace', label: 'Ignore whitespace', title: 'Treat lines that differ only in spacing or indentation as equal' },
+    { key: 'ignoreCase', label: 'Ignore case', title: 'Treat lines that differ only in letter case as equal' },
+    { key: 'normalizeJson', label: 'Normalize JSON', title: 'Pretty-print valid JSON with sorted keys before comparing' },
+  ],
+  json: [
+    { key: 'ignoreArrayOrder', label: 'Ignore array order', title: 'Match array items by value regardless of their position' },
+  ],
+};
+
+type JsonDiffResult = { changes: JsonChange[]; error?: undefined } | { changes?: undefined; error: string };
+
+function parseSide(text: string, label: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error(`${label} is not valid JSON: ${(e as Error).message}`);
+  }
+}
 
 // Formats with sorted keys so JSON that differs only in key order or indentation compares equal.
 function normalize(text: string): string {
@@ -57,6 +90,8 @@ export default function CompareApp() {
     };
   }, []);
 
+  useEffect(() => setShareableState(TOOL_KEY, state), [state]);
+
   const update = (patch: Partial<CompareToolState>) => {
     const next = { ...state, ...patch };
     setState(next);
@@ -66,13 +101,23 @@ export default function CompareApp() {
   // Diffing large inputs on every keystroke is expensive; let typing stay responsive.
   const deferred = useDeferredValue(state);
   const diff = useMemo(() => {
-    const { left, right, normalizeJson, ignoreWhitespace, ignoreCase } = deferred;
-    if (!left && !right) return null;
+    const { mode, left, right, normalizeJson, ignoreWhitespace, ignoreCase } = deferred;
+    if (mode !== 'text' || (!left && !right)) return null;
     return buildSideBySideDiff(
       normalizeJson ? normalize(left) : left,
       normalizeJson ? normalize(right) : right,
       { ignoreWhitespace, ignoreCase }
     );
+  }, [deferred]);
+
+  const jsonDiff = useMemo((): JsonDiffResult | null => {
+    const { mode, left, right, ignoreArrayOrder } = deferred;
+    if (mode !== 'json' || !left.trim() || !right.trim()) return null;
+    try {
+      return { changes: diffJson(parseSide(left, 'Original'), parseSide(right, 'Changed'), { ignoreArrayOrder }) };
+    } catch (e) {
+      return { error: (e as Error).message };
+    }
   }, [deferred]);
 
   if (!loaded) {
@@ -84,16 +129,29 @@ export default function CompareApp() {
   }
 
   const identical = diff !== null && diff.added === 0 && diff.removed === 0;
-  const toggles: { key: 'ignoreWhitespace' | 'ignoreCase' | 'normalizeJson'; label: string; title: string }[] = [
-    { key: 'ignoreWhitespace', label: 'Ignore whitespace', title: 'Treat lines that differ only in spacing or indentation as equal' },
-    { key: 'ignoreCase', label: 'Ignore case', title: 'Treat lines that differ only in letter case as equal' },
-    { key: 'normalizeJson', label: 'Normalize JSON', title: 'Pretty-print valid JSON with sorted keys before comparing' },
-  ];
+  const toggles = TOGGLES[state.mode];
+  const countOf = (type: JsonChange['type']) => jsonDiff?.changes?.filter((c) => c.type === type).length ?? 0;
 
   return (
     <div className="h-full flex flex-col overflow-hidden p-2 gap-2">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => update({ mode: m.id })}
+                title={m.title}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                  state.mode === m.id
+                    ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
           {toggles.map(({ key, label, title }) => (
             <label
               key={key}
@@ -152,7 +210,23 @@ export default function CompareApp() {
 
       <div className="flex-1 min-h-0 flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
         <div className="px-2 py-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-750 border-b border-gray-100 dark:border-gray-700">
-          {diff === null ? (
+          {state.mode === 'json' ? (
+            jsonDiff === null ? (
+              'Differences'
+            ) : jsonDiff.error !== undefined ? (
+              <span className="text-red-500 dark:text-red-400">{jsonDiff.error}</span>
+            ) : jsonDiff.changes.length === 0 ? (
+              <span className="text-green-600 dark:text-green-400">JSON is structurally identical</span>
+            ) : (
+              <>
+                <span className="text-green-600 dark:text-green-400">+{countOf('added')} added</span>
+                {' · '}
+                <span className="text-red-500 dark:text-red-400">-{countOf('removed')} removed</span>
+                {' · '}
+                <span className="text-amber-600 dark:text-amber-400">~{countOf('changed')} changed</span>
+              </>
+            )
+          ) : diff === null ? (
             'Differences'
           ) : identical ? (
             <span className="text-green-600 dark:text-green-400">Texts are identical</span>
@@ -165,7 +239,13 @@ export default function CompareApp() {
           )}
         </div>
         <div className="flex-1 overflow-auto min-h-0">
-          {diff ? (
+          {jsonDiff?.changes && jsonDiff.changes.length > 0 ? (
+            <JsonDiffView changes={jsonDiff.changes} />
+          ) : state.mode === 'json' ? (
+            <div className="h-full flex items-center justify-center text-xs text-gray-400">
+              {jsonDiff ? 'No structural differences' : 'Paste JSON on both sides to see the differences'}
+            </div>
+          ) : diff ? (
             <DiffView
               rows={diff.rows}
               options={{ ignoreCase: deferred.ignoreCase }}

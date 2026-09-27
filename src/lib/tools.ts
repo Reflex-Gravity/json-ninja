@@ -1,4 +1,14 @@
-import { Braces, Image, FileCode2, Binary, GitCompare, Quote } from 'lucide-react';
+import {
+  Braces,
+  Image,
+  FileCode2,
+  FileText,
+  Binary,
+  GitCompare,
+  Quote,
+  Regex,
+  FileType2,
+} from 'lucide-react';
 import type { ToolId } from '@/types';
 
 export const TOOLS: {
@@ -37,6 +47,15 @@ export const TOOLS: {
       'Free online HTML previewer. Paste HTML/CSS/JS and instantly render it in a sandboxed live preview, entirely in your browser with no upload to a server.',
   },
   {
+    id: 'markdown',
+    label: 'Markdown Preview',
+    icon: FileText,
+    path: '/markdown',
+    title: 'Markdown Preview & Editor Online – GravityTools',
+    description:
+      'Free online Markdown editor with live GitHub-flavored preview—tables, task lists, and code blocks. Copy or export the rendered HTML, entirely in your browser.',
+  },
+  {
     id: 'base64',
     label: 'Base64',
     icon: Binary,
@@ -62,6 +81,24 @@ export const TOOLS: {
     title: 'JSON Stringify, Unescape & cURL Converter Online – GravityTools',
     description:
       'Free online JSON stringify/parse tool and cURL converter. Escape JSON into a string, unescape it back, build a curl command with a properly quoted body, or extract JSON from a curl command—100% in your browser.',
+  },
+  {
+    id: 'regex',
+    label: 'Regex Tester',
+    icon: Regex,
+    path: '/regex',
+    title: 'Regex Tester & Builder Online – GravityTools',
+    description:
+      'Free online JavaScript regex tester and builder. Live match highlighting, capture groups, replace preview, a token palette, common patterns, and a plain-English explanation—100% in your browser.',
+  },
+  {
+    id: 'types',
+    label: 'JSON to Types',
+    icon: FileType2,
+    path: '/json-to-types',
+    title: 'JSON to TypeScript & Zod Converter Online – GravityTools',
+    description:
+      'Free online converter that generates TypeScript interfaces or Zod schemas from JSON samples, with optional-field detection across arrays. Runs entirely in your browser.',
   },
 ];
 
