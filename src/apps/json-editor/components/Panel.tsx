@@ -24,7 +24,7 @@ interface Props {
   onImportFile: () => void;
   onExportFile: () => void;
   onShare: () => void;
-  onCompare?: () => void;
+  onCompare: () => void;
 }
 
 export default function Panel(props: Props) {

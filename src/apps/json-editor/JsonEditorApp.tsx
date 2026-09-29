@@ -9,7 +9,7 @@ import type {
   JsonEditorState,
   TabState,
 } from '@/types';
-import { DEFAULT_PANEL_TITLES } from '@/types';
+import { DEFAULT_PANEL_TITLES, MAX_PANELS } from '@/types';
 import {
   getJsonEditorState,
   saveJsonEditorState,
@@ -38,6 +38,7 @@ export interface JsonEditorHandle {
   setLayout: (layout: LayoutType) => void;
   formatAll: () => void;
   openDocuments: () => void;
+  compare: () => void;
   importUrl: (text: string, panelIndex: number) => void;
   runPanelAction: (panelId: PanelId, action: PanelActionId) => void;
 }
@@ -262,19 +263,25 @@ function JsonEditorApp(
     }));
   };
 
+  const visiblePanels = panels.slice(0, MAX_PANELS[layout]);
+
+  // Compares against another open document: preferably the one shown in another panel, else another
+  // tab (of any visible panel), favouring documents that have content.
   const handleCompare = (id: PanelId) => {
     const leftTab = getActiveTab(panels[id]);
-    const otherPanel = panels.find(
-      (p) => p.id !== id && getActiveTab(p).content.trim()
-    );
-    const fallbackPanel = panels.find((p) => p.id !== id);
-    const rightPanel = otherPanel ?? fallbackPanel;
+    const others = [
+      ...visiblePanels.filter((p) => p.id !== id).map((p) => ({ panelId: p.id, tab: getActiveTab(p) })),
+      ...visiblePanels.flatMap((p) => p.tabs.map((tab) => ({ panelId: p.id, tab }))),
+    ].filter(({ tab }) => tab.id !== leftTab.id);
+    const right = others.find(({ tab }) => tab.content.trim()) ?? others[0];
+    if (!right) {
+      showToast('Open another tab or panel to compare with', 'info');
+      return;
+    }
     setCompareState({
       open: true,
       left: { panelId: id, tabId: leftTab.id },
-      right: rightPanel
-        ? { panelId: rightPanel.id, tabId: getActiveTab(rightPanel).id }
-        : null,
+      right: { panelId: right.panelId, tabId: right.tab.id },
     });
   };
 
@@ -433,6 +440,7 @@ function JsonEditorApp(
     setLayout: handleLayoutChange,
     formatAll: handleFormatAll,
     openDocuments: () => setDocDialogOpen(true),
+    compare: () => handleCompare(0),
     importUrl: handleImportUrl,
     runPanelAction,
   }));
@@ -482,7 +490,7 @@ function JsonEditorApp(
       <CompareDialog
         open={compareState.open}
         onClose={() => setCompareState({ ...compareState, open: false })}
-        panels={panels}
+        panels={visiblePanels}
         initialLeft={compareState.left}
         initialRight={compareState.right}
       />

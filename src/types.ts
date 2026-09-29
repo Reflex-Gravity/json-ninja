@@ -69,13 +69,11 @@ export interface Base64ToolState {
 export type CompareMode = 'text' | 'json';
 
 export interface CompareToolState {
-  mode: CompareMode;
   left: string;
   right: string;
   ignoreWhitespace: boolean;
   ignoreCase: boolean;
   normalizeJson: boolean;
-  ignoreArrayOrder: boolean;
 }
 
 export interface MarkdownToolState {
@@ -90,7 +88,7 @@ export interface RegexToolState {
   replaceEnabled: boolean;
 }
 
-export type TypesOutputFormat = 'typescript' | 'zod';
+export type TypesOutputFormat = 'typescript' | 'zod' | 'yup';
 
 export interface TypesToolState {
   input: string;

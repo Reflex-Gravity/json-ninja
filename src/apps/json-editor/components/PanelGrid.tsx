@@ -16,7 +16,7 @@ interface Props {
   onTabMove: (fromPanelId: PanelId, tabId: string, toPanelId: PanelId, toIndex: number) => void;
   onSave: (id: PanelId) => void;
   onShare: (id: PanelId) => void;
-  onCompare?: (id: PanelId) => void;
+  onCompare: (id: PanelId) => void;
 }
 
 export default function PanelGrid({
@@ -85,7 +85,7 @@ export default function PanelGrid({
     document.addEventListener('mouseup', handleMouseUp);
   };
 
-  const renderPanel = (panel: PanelState, compareId?: PanelId) => {
+  const renderPanel = (panel: PanelState) => {
     const activeTab = getActiveTab(panel);
     return (
       <Panel
@@ -110,7 +110,7 @@ export default function PanelGrid({
         onImportFile={() => {}}
         onExportFile={() => {}}
         onShare={() => onShare(panel.id)}
-        onCompare={compareId !== undefined ? () => onCompare?.(panel.id) : undefined}
+        onCompare={() => onCompare(panel.id)}
       />
     );
   };
@@ -127,11 +127,11 @@ export default function PanelGrid({
     return (
       <div ref={containerRef} className="flex h-full w-full p-2 gap-0">
         <div className="min-h-0 min-w-0" style={{ width: `${splitH}%` }}>
-          {renderPanel(panels[0], 0)}
+          {renderPanel(panels[0])}
         </div>
         <Divider orientation="vertical" onStart={startDrag('h')} />
         <div className="flex-1 min-h-0 min-w-0">
-          {renderPanel(panels[1], 1)}
+          {renderPanel(panels[1])}
         </div>
       </div>
     );
@@ -141,11 +141,11 @@ export default function PanelGrid({
     return (
       <div ref={containerRef} className="flex flex-col h-full w-full p-2 gap-0">
         <div className="min-h-0 min-w-0" style={{ height: `${splitV}%` }}>
-          {renderPanel(panels[0], 0)}
+          {renderPanel(panels[0])}
         </div>
         <Divider orientation="horizontal" onStart={startDrag('v')} />
         <div className="flex-1 min-h-0 min-w-0">
-          {renderPanel(panels[1], 1)}
+          {renderPanel(panels[1])}
         </div>
       </div>
     );
@@ -156,21 +156,21 @@ export default function PanelGrid({
     <div ref={containerRef} className="flex flex-col h-full w-full p-2 gap-0">
       <div className="flex min-h-0 min-w-0" style={{ height: `${splitV}%` }}>
         <div className="min-h-0 min-w-0" style={{ width: `${splitRow1}%` }}>
-          {renderPanel(panels[0], 0)}
+          {renderPanel(panels[0])}
         </div>
         <Divider orientation="vertical" onStart={startDrag('r1')} />
         <div className="flex-1 min-h-0 min-w-0">
-          {renderPanel(panels[1], 1)}
+          {renderPanel(panels[1])}
         </div>
       </div>
       <Divider orientation="horizontal" onStart={startDrag('v')} />
       <div className="flex flex-1 min-h-0 min-w-0">
         <div className="min-h-0 min-w-0" style={{ width: `${splitRow2}%` }}>
-          {renderPanel(panels[2], 2)}
+          {renderPanel(panels[2])}
         </div>
         <Divider orientation="vertical" onStart={startDrag('r2')} />
         <div className="flex-1 min-h-0 min-w-0">
-          {renderPanel(panels[3], 3)}
+          {renderPanel(panels[3])}
         </div>
       </div>
     </div>

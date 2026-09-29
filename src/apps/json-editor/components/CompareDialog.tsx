@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, X } from 'lucide-react';
 import { formatJson, tryParseJson } from '@/lib/json-utils';
 import { buildSideBySideDiff } from '@/lib/diff-utils';
-import { diffJson } from '@/lib/json-diff';
+import { diffJson, type JsonChange } from '@/lib/json-diff';
 import DiffView from '@/components/DiffView';
 import JsonDiffView from '@/components/JsonDiffView';
 import type { CompareMode, PanelId, PanelState } from '@/types';
@@ -47,10 +47,15 @@ function formattedFor(panels: PanelState[], ref: DocRef | null): string {
   }
 }
 
-function structuralDiff(panels: PanelState[], left: DocRef | null, right: DocRef | null) {
+function structuralDiff(
+  panels: PanelState[],
+  left: DocRef | null,
+  right: DocRef | null,
+  ignoreArrayOrder: boolean
+) {
   try {
     const parse = (ref: DocRef | null) => JSON.parse(resolveContent(panels, ref) || 'null');
-    return { changes: diffJson(parse(left), parse(right)), error: null };
+    return { changes: diffJson(parse(left), parse(right), { ignoreArrayOrder }), error: null };
   } catch (e) {
     return { changes: [], error: `Both documents must be valid JSON: ${(e as Error).message}` };
   }
@@ -59,7 +64,8 @@ function structuralDiff(panels: PanelState[], left: DocRef | null, right: DocRef
 export default function CompareDialog({ open, onClose, panels, initialLeft, initialRight }: Props) {
   const [left, setLeft] = useState<DocRef | null>(initialLeft);
   const [right, setRight] = useState<DocRef | null>(initialRight);
-  const [mode, setMode] = useState<CompareMode>('text');
+  const [mode, setMode] = useState<CompareMode>('json');
+  const [ignoreArrayOrder, setIgnoreArrayOrder] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -76,7 +82,7 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
           panelId: p.id,
           tabId: t.id,
           key: `${p.id}:${t.id}`,
-          label: `Document ${p.id + 1} · ${t.title}`,
+          label: panels.length > 1 ? `Panel ${p.id + 1} · ${t.title}` : t.title,
         }))
       ),
     [panels]
@@ -89,8 +95,8 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
 
   const jsonDiff = useMemo(() => {
     if (!open || mode !== 'json') return null;
-    return structuralDiff(panels, left, right);
-  }, [open, mode, panels, left, right]);
+    return structuralDiff(panels, left, right, ignoreArrayOrder);
+  }, [open, mode, panels, left, right, ignoreArrayOrder]);
 
   if (!open) return null;
 
@@ -108,6 +114,7 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
   };
 
   const identical = diff !== null && diff.added === 0 && diff.removed === 0;
+  const countOf = (type: JsonChange['type']) => jsonDiff?.changes.filter((c) => c.type === type).length ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -116,7 +123,7 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Compare Documents</h2>
             <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-md p-0.5">
-              {(['text', 'json'] as const).map((m) => (
+              {(['json', 'text'] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
@@ -131,9 +138,24 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
                 </button>
               ))}
             </div>
+            {mode === 'json' && (
+              <label
+                title="Match array items by value regardless of their position"
+                className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300 cursor-pointer select-none"
+              >
+                <input
+                  type="checkbox"
+                  checked={ignoreArrayOrder}
+                  onChange={(e) => setIgnoreArrayOrder(e.target.checked)}
+                  className="accent-blue-500"
+                />
+                Ignore array order
+              </label>
+            )}
           </div>
           <button
             onClick={onClose}
+            title="Close"
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
           >
             <X className="w-4 h-4" />
@@ -194,7 +216,11 @@ export default function CompareDialog({ open, onClose, panels, initialLeft, init
               <p className="text-xs text-green-600 dark:text-green-400">Documents are structurally identical</p>
             ) : (
               <p className="text-xs text-gray-600 dark:text-gray-400">
-                {jsonDiff.changes.length} difference{jsonDiff.changes.length === 1 ? '' : 's'}
+                <span className="text-green-600 dark:text-green-400">+{countOf('added')} added</span>
+                {' · '}
+                <span className="text-red-500 dark:text-red-400">-{countOf('removed')} removed</span>
+                {' · '}
+                <span className="text-amber-600 dark:text-amber-400">~{countOf('changed')} changed</span>
               </p>
             )}
           </div>

@@ -105,6 +105,15 @@ class Emitter {
     return this.options.format === 'zod';
   }
 
+  get yup() {
+    return this.options.format === 'yup';
+  }
+
+  // Zod and Yup emit runtime schema consts; TypeScript emits plain types.
+  get schema() {
+    return this.zod || this.yup;
+  }
+
   private reserveName(hint: string): string {
     const base = toPascalCase(hint);
     let name = base;
@@ -114,16 +123,23 @@ class Emitter {
   }
 
   private refName(name: string): string {
-    return this.zod ? `${name}Schema` : name;
+    return this.schema ? `${name}Schema` : name;
   }
 
   private declareObject(obj: ObjectInfo, hint: string): string {
     const name = this.reserveName(hint);
-    // TypeScript reads best parent-first; Zod consts must be declared before they are used.
-    const slot = this.zod ? -1 : this.decls.push(null) - 1;
+    // TypeScript reads best parent-first; schema consts must be declared before they are used.
+    const slot = this.schema ? -1 : this.decls.push(null) - 1;
 
     const lines = Array.from(obj.fields, ([key, field]) => {
       const optional = field.count < obj.samples;
+      if (this.yup) {
+        // Yup fields accept undefined unless marked; `.defined()` (unlike `.required()`) still allows "".
+        const { schema, isObject } = this.renderYup(field.type, key);
+        // An object schema builds a default `{}` from its fields, so only an undefined default lets it be absent.
+        const presence = optional ? `.optional()${isObject ? '.default(undefined)' : ''}` : '.defined()';
+        return `  ${propertyKey(key)}: ${schema}${presence},`;
+      }
       const type = this.render(field.type, key);
       if (this.zod) return `  ${propertyKey(key)}: ${type}${optional ? '.optional()' : ''},`;
       return `  ${propertyKey(key)}${optional ? '?' : ''}: ${type};`;
@@ -141,7 +157,44 @@ class Emitter {
     return this.refName(name);
   }
 
+  // Yup has no union schema, so mixed types become `yup.mixed<A | B>()`; the TypeScript type of each
+  // part is tracked alongside its schema to fill in that type parameter.
+  renderYup(info: TypeInfo, hint: string): { schema: string; type: string; isObject: boolean } {
+    const parts: { schema: string; type: string }[] = [];
+    if (info.object) {
+      const ref = this.declareObject(info.object, hint);
+      parts.push({ schema: ref, type: ref.replace(/Schema$/, '') });
+    }
+    if (info.array) {
+      const element = this.renderYup(info.array, itemName(toPascalCase(hint)));
+      parts.push({
+        schema: `yup.array(${element.schema}.defined())`,
+        type: element.type.includes(' | ') ? `(${element.type})[]` : `${element.type}[]`,
+      });
+    }
+    for (const p of ['string', 'number', 'boolean'] as const) {
+      if (info.primitives.has(p)) parts.push({ schema: `yup.${p}()`, type: p });
+    }
+
+    const nullable = info.primitives.has('null');
+    let schema: string;
+    if (parts.length === 1) schema = parts[0].schema;
+    else if (parts.length === 0) schema = 'yup.mixed()';
+    else schema = `yup.mixed<${parts.map((p) => p.type).join(' | ')}>()`;
+    const types = parts.map((p) => p.type);
+    if (nullable) {
+      schema += '.nullable()';
+      types.push('null');
+    }
+    return {
+      schema,
+      type: types.length ? types.join(' | ') : 'unknown',
+      isObject: parts.length === 1 && info.object !== null,
+    };
+  }
+
   render(info: TypeInfo, hint: string): string {
+    if (this.yup) return this.renderYup(info, hint).schema;
     const parts: string[] = [];
     if (info.object) parts.push(this.declareObject(info.object, hint));
     if (info.array) {
@@ -168,6 +221,7 @@ class Emitter {
       .filter((d): d is Declaration => d !== null)
       .map(({ name, body }) => {
         if (this.zod) return `export const ${name}Schema = z.object(${body});`;
+        if (this.yup) return `export const ${name}Schema = yup.object(${body});`;
         return this.options.declaration === 'interface'
           ? `export interface ${name} ${body}`
           : `export type ${name} = ${body};`;
@@ -175,12 +229,14 @@ class Emitter {
 
     // A root that isn't a single object shape (e.g. an array) still gets a named export.
     const rootIsDeclared = rootType === this.refName(rootName);
-    if (this.zod) {
-      if (!rootIsDeclared) blocks.push(`export const ${rootName}Schema = ${rootType};`);
-      blocks.unshift("import { z } from 'zod';");
+    if (this.schema) {
+      const rootSchema = this.yup ? `${rootType}.defined()` : rootType;
+      if (!rootIsDeclared) blocks.push(`export const ${rootName}Schema = ${rootSchema};`);
+      blocks.unshift(this.zod ? "import { z } from 'zod';" : "import * as yup from 'yup';");
       const names = this.decls.filter((d): d is Declaration => d !== null).map((d) => d.name);
       if (!rootIsDeclared) names.push(rootName);
-      blocks.push(names.map((name) => `export type ${name} = z.infer<typeof ${name}Schema>;`).join('\n'));
+      const infer = this.zod ? 'z.infer' : 'yup.InferType';
+      blocks.push(names.map((name) => `export type ${name} = ${infer}<typeof ${name}Schema>;`).join('\n'));
     } else if (!rootIsDeclared) {
       blocks.unshift(`export type ${rootName} = ${rootType};`);
     }

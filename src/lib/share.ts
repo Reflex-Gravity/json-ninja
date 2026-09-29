@@ -30,13 +30,11 @@ const STATE_SHAPES: Record<ToolId, Record<string, FieldSpec>> = {
   markdown: { content: 'string' },
   base64: { mode: ['encode', 'decode'], input: 'string' },
   compare: {
-    mode: ['text', 'json'],
     left: 'string',
     right: 'string',
     ignoreWhitespace: 'boolean',
     ignoreCase: 'boolean',
     normalizeJson: 'boolean',
-    ignoreArrayOrder: 'boolean',
   },
   stringify: {
     mode: ['stringify', 'parse', 'to-curl', 'from-curl'],
@@ -56,7 +54,7 @@ const STATE_SHAPES: Record<ToolId, Record<string, FieldSpec>> = {
   types: {
     input: 'string',
     rootName: 'string',
-    format: ['typescript', 'zod'],
+    format: ['typescript', 'zod', 'yup'],
     declaration: ['interface', 'type'],
   },
 };
