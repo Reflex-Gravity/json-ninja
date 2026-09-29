@@ -9,6 +9,7 @@ import {
   Rows2,
   Grid2x2,
   FolderOpen,
+  GitCompare,
   Link as LinkIcon,
   Share2,
   Command,
@@ -26,6 +27,7 @@ interface Props {
   jsonPanelCount?: number;
   onJsonLayoutChange?: (layout: LayoutType) => void;
   onFormatAll?: () => void;
+  onCompare?: () => void;
   onOpenDocuments?: () => void;
   onImportUrl?: (text: string, panelIndex: number) => void;
   urlModalOpen: boolean;
@@ -56,6 +58,7 @@ export default function Topbar({
   jsonPanelCount = 1,
   onJsonLayoutChange,
   onFormatAll,
+  onCompare,
   onOpenDocuments,
   onImportUrl,
   urlModalOpen,
@@ -140,6 +143,10 @@ export default function Topbar({
               <Braces className="w-4 h-4" />
               <span className="hidden lg:inline">Format all</span>
             </button>
+            <button onClick={onCompare} title="Compare JSON documents" className={iconButtonClass}>
+              <GitCompare className="w-4 h-4" />
+              <span className="hidden lg:inline">Compare</span>
+            </button>
             <button onClick={() => setUrlModalOpen(true)} title="Import from URL" className={iconButtonClass}>
               <LinkIcon className="w-4 h-4" />
               <span className="hidden lg:inline">Import URL</span>
@@ -201,6 +208,7 @@ export default function Topbar({
               <h2 className="text-sm font-bold text-gray-800 dark:text-gray-100">Import from URL</h2>
               <button
                 onClick={() => setUrlModalOpen(false)}
+                title="Close"
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
                 <X className="w-4 h-4" />

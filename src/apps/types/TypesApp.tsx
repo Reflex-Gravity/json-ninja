@@ -25,7 +25,14 @@ const DEFAULT_STATE: TypesToolState = {
 const FORMATS: { id: TypesOutputFormat; label: string }[] = [
   { id: 'typescript', label: 'TypeScript' },
   { id: 'zod', label: 'Zod' },
+  { id: 'yup', label: 'Yup' },
 ];
+
+const OUTPUT_LABELS: Record<TypesOutputFormat, string> = {
+  typescript: 'TypeScript types',
+  zod: 'Zod schema',
+  yup: 'Yup schema',
+};
 
 const segmentClass = (active: boolean) =>
   `px-3 py-1.5 rounded text-xs font-medium transition-colors ${
@@ -136,7 +143,7 @@ export default function TypesApp() {
         </div>
         <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
           <div className="flex items-center justify-between px-2 py-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-750 border-b border-gray-100 dark:border-gray-700">
-            <span>{format === 'zod' ? 'Zod schema' : 'TypeScript types'}</span>
+            <span>{OUTPUT_LABELS[format]}</span>
             <button
               onClick={handleCopy}
               disabled={!output}

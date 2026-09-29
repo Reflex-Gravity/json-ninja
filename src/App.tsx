@@ -33,6 +33,7 @@ import { CURRENT_VERSION, PRE_CHANGELOG_VERSION, compareVersions } from '@/lib/c
 import Sidebar from '@/components/Sidebar';
 import Topbar from '@/components/Topbar';
 import Toaster from '@/components/Toaster';
+import TooltipLayer from '@/components/TooltipLayer';
 import WhatsNewDialog from '@/components/WhatsNewDialog';
 import CommandPalette, { type Command } from '@/components/CommandPalette';
 import JsonEditorApp, { type JsonEditorHandle } from '@/apps/json-editor/JsonEditorApp';
@@ -274,6 +275,7 @@ export default function App() {
     const editor = () => jsonEditorRef.current;
     list.push(
       { id: 'json:format-all', label: 'Format all panels', group: 'JSON Editor', icon: Braces, keywords: 'prettify', run: () => editor()?.formatAll() },
+      { id: 'json:compare', label: 'Compare JSON documents', group: 'JSON Editor', icon: GitCompare, keywords: 'diff structure', run: () => editor()?.compare() },
       { id: 'json:documents', label: 'Open saved documents', group: 'JSON Editor', icon: FolderOpen, run: () => editor()?.openDocuments() },
       { id: 'json:import-url', label: 'Import from URL', group: 'JSON Editor', icon: LinkIcon, keywords: 'fetch', run: () => setUrlModalOpen(true) },
       ...layoutCommands.map(({ type, label, icon }) => ({
@@ -288,7 +290,6 @@ export default function App() {
     for (let i = 0; i < jsonPanelCount; i++) {
       const group = jsonPanelCount > 1 ? `Panel ${i + 1}` : 'Document';
       for (const { action, label, icon, keywords } of panelCommands) {
-        if (action === 'compare' && jsonPanelCount < 2) continue;
         list.push({
           id: `json:panel:${i}:${action}`,
           label,
@@ -329,6 +330,7 @@ export default function App() {
           jsonPanelCount={jsonPanelCount}
           onJsonLayoutChange={(layout) => jsonEditorRef.current?.setLayout(layout)}
           onFormatAll={() => jsonEditorRef.current?.formatAll()}
+          onCompare={() => jsonEditorRef.current?.compare()}
           onOpenDocuments={() => jsonEditorRef.current?.openDocuments()}
           onImportUrl={(text, panelIndex) => jsonEditorRef.current?.importUrl(text, panelIndex)}
           urlModalOpen={urlModalOpen}
@@ -404,6 +406,7 @@ export default function App() {
       />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} commands={commands} />
       <Toaster />
+      <TooltipLayer />
     </div>
   );
 }

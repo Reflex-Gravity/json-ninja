@@ -31,7 +31,7 @@ interface Props {
   onImportFile: () => void;
   onExportFile: () => void;
   onShare: () => void;
-  onCompare?: () => void;
+  onCompare: () => void;
 }
 
 interface HeaderAction {
@@ -125,15 +125,13 @@ export default function PanelHeader({
         }
       },
     })),
+    { id: 'compare', label: 'Compare with another document', icon: GitCompare, group: 1, onClick: onCompare },
     { id: 'copy', label: copied ? 'Copied!' : 'Copy', icon: copied ? Check : Copy, group: 1, onClick: handleCopy },
     { id: 'search', label: 'Search', icon: Search, group: 1, onClick: () => setSearchOpen(!searchOpen) },
     { id: 'save', label: 'Save to documents', icon: Save, group: 2, onClick: onSave },
     { id: 'import', label: 'Import file', icon: Upload, group: 2, onClick: onImportFile },
     { id: 'export', label: 'Export file', icon: Download, group: 2, onClick: onExportFile },
     { id: 'share', label: 'Copy share link', icon: Share2, group: 2, onClick: onShare },
-    ...(onCompare
-      ? [{ id: 'compare', label: 'Compare', icon: GitCompare, group: 3, onClick: onCompare }]
-      : []),
     { id: 'clear', label: 'Clear', icon: Trash2, group: 3, onClick: () => onContentChange(''), danger: true },
   ];
 
@@ -194,10 +192,10 @@ export default function PanelHeader({
                 }}
                 className="text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded px-1.5 py-0.5 outline-none flex-1 min-w-0"
               />
-              <button onClick={saveTitle} className="text-green-600 hover:text-green-700">
+              <button onClick={saveTitle} title="Save name" className="text-green-600 hover:text-green-700">
                 <Check className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => setEditingTitle(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setEditingTitle(false)} title="Cancel" className="text-gray-400 hover:text-gray-600">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -273,6 +271,7 @@ export default function PanelHeader({
               setSearchOpen(false);
               setSearchTerm('');
             }}
+            title="Close search"
             className="text-gray-400 hover:text-gray-600"
           >
             <X className="w-3.5 h-3.5" />

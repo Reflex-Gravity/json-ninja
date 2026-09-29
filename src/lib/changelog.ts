@@ -8,6 +8,7 @@ import {
   GripVertical,
   Wrench,
   GitCompare,
+  MessageSquare,
   type LucideIcon,
 } from 'lucide-react';
 import type { ToolId } from '@/types';
@@ -28,6 +29,29 @@ export interface Release {
 
 // Newest first. Add a release at the top to have it shown to returning users.
 export const RELEASES: Release[] = [
+  {
+    version: '1.4.0',
+    date: '2026-09-29',
+    items: [
+      {
+        title: 'JSON compare moved into the JSON Editor',
+        description:
+          'Compare any two open documents by structure or as text from the new Compare button, or from any panel. Text Compare is now a plain text diff.',
+        tool: 'json',
+        icon: GitCompare,
+      },
+      {
+        title: 'JSON → Yup',
+        description: 'JSON to Types can now generate Yup schemas with inferred types, alongside TypeScript and Zod.',
+        tool: 'types',
+      },
+      {
+        title: 'Tooltips everywhere',
+        description: 'Every icon button now shows a quick, readable tooltip on hover.',
+        icon: MessageSquare,
+      },
+    ],
+  },
   {
     version: '1.3.0',
     date: '2026-09-27',
@@ -53,7 +77,7 @@ export const RELEASES: Release[] = [
         title: 'Structural JSON diff',
         description:
           'Compare JSON by structure, ignoring key order and whitespace, with an option to ignore array order.',
-        tool: 'compare',
+        tool: 'json',
         icon: GitCompare,
       },
       {
