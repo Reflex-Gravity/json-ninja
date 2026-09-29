@@ -26,7 +26,7 @@ export const TOOLS: {
     path: '/',
     title: 'JSON Editor & Formatter Online – GravityTools',
     description:
-      'Free online JSON editor, formatter, and validator with tree/code/table views, multi-panel comparison, and repair for malformed JSON. 100% private—runs entirely in your browser.',
+      'Free online JSON editor, formatter, and validator with tree/code/table views, multi-panel editing, structural JSON diff, and repair for malformed JSON. 100% private—runs entirely in your browser.',
   },
   {
     id: 'svg',
@@ -71,7 +71,7 @@ export const TOOLS: {
     path: '/compare',
     title: 'Text Compare & Diff Checker Online – GravityTools',
     description:
-      'Free online text and JSON diff checker. Compare two texts side by side with line and word-level highlighting, entirely in your browser with no upload to a server.',
+      'Free online text diff checker. Compare two texts side by side with line and word-level highlighting, entirely in your browser with no upload to a server.',
   },
   {
     id: 'stringify',
@@ -96,9 +96,9 @@ export const TOOLS: {
     label: 'JSON to Types',
     icon: FileType2,
     path: '/json-to-types',
-    title: 'JSON to TypeScript & Zod Converter Online – GravityTools',
+    title: 'JSON to TypeScript, Zod & Yup Converter Online – GravityTools',
     description:
-      'Free online converter that generates TypeScript interfaces or Zod schemas from JSON samples, with optional-field detection across arrays. Runs entirely in your browser.',
+      'Free online converter that generates TypeScript interfaces, Zod schemas or Yup schemas from JSON samples, with optional-field detection across arrays. Runs entirely in your browser.',
   },
 ];
 
